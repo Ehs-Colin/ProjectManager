@@ -2,37 +2,37 @@
 # versions:
 #   sqlc v1.31.1
 # source: project_step_tools.sql
-from typing import Any, AsyncIterator, Iterator, Optional
+from typing import AsyncIterator, Iterator, Optional
 
 import sqlalchemy
 import sqlalchemy.ext.asyncio
 
-from db import models
+from internal.db import models
 
 
 CREATE_PROJECT_STEP_TOOL = """-- name: create_project_step_tool \\:one
 INSERT INTO ProjectStepTools (project_id, step_id, tool_id)
 VALUES (
-    ?,
-    ?,
-    ?
+    :p1,
+    :p2,
+    :p3
 )
 RETURNING project_id, step_id, tool_id
 """
 
 
 DELETE_PROJECT_STEP_TOOL = """-- name: delete_project_step_tool \\:exec
-DELETE FROM ProjectStepTools WHERE project_id = ? AND step_id = ? AND tool_id = ?
+DELETE FROM ProjectStepTools WHERE project_id = :p1 AND step_id = :p2 AND tool_id = :p3
 """
 
 
 GET_PROJECT_STEP_TOOLS = """-- name: get_project_step_tools \\:many
-SELECT project_id, step_id, tool_id FROM ProjectStepTools WHERE project_id = ?
+SELECT project_id, step_id, tool_id FROM ProjectStepTools WHERE project_id = :p1
 """
 
 
 GET_TOOLS_PROJECT_STEP = """-- name: get_tools_project_step \\:many
-SELECT project_id, step_id, tool_id FROM ProjectStepTools WHERE project_id = ? AND step_id = ?
+SELECT project_id, step_id, tool_id FROM ProjectStepTools WHERE project_id = :p1 AND step_id = :p2
 """
 
 
@@ -40,7 +40,7 @@ class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
 
-    def create_project_step_tool(self, *, project_id: Any, step_id: Any, tool_id: Any) -> Optional[models.Projectsteptool]:
+    def create_project_step_tool(self, *, project_id: str, step_id: str, tool_id: str) -> Optional[models.Projectsteptool]:
         row = self._conn.execute(sqlalchemy.text(CREATE_PROJECT_STEP_TOOL), {"p1": project_id, "p2": step_id, "p3": tool_id}).first()
         if row is None:
             return None
@@ -50,10 +50,10 @@ class Querier:
             tool_id=row[2],
         )
 
-    def delete_project_step_tool(self, *, project_id: Any, step_id: Any, tool_id: Any) -> None:
+    def delete_project_step_tool(self, *, project_id: str, step_id: str, tool_id: str) -> None:
         self._conn.execute(sqlalchemy.text(DELETE_PROJECT_STEP_TOOL), {"p1": project_id, "p2": step_id, "p3": tool_id})
 
-    def get_project_step_tools(self, *, project_id: Any) -> Iterator[models.Projectsteptool]:
+    def get_project_step_tools(self, *, project_id: str) -> Iterator[models.Projectsteptool]:
         result = self._conn.execute(sqlalchemy.text(GET_PROJECT_STEP_TOOLS), {"p1": project_id})
         for row in result:
             yield models.Projectsteptool(
@@ -62,7 +62,7 @@ class Querier:
                 tool_id=row[2],
             )
 
-    def get_tools_project_step(self, *, project_id: Any, step_id: Any) -> Iterator[models.Projectsteptool]:
+    def get_tools_project_step(self, *, project_id: str, step_id: str) -> Iterator[models.Projectsteptool]:
         result = self._conn.execute(sqlalchemy.text(GET_TOOLS_PROJECT_STEP), {"p1": project_id, "p2": step_id})
         for row in result:
             yield models.Projectsteptool(
@@ -76,7 +76,7 @@ class AsyncQuerier:
     def __init__(self, conn: sqlalchemy.ext.asyncio.AsyncConnection):
         self._conn = conn
 
-    async def create_project_step_tool(self, *, project_id: Any, step_id: Any, tool_id: Any) -> Optional[models.Projectsteptool]:
+    async def create_project_step_tool(self, *, project_id: str, step_id: str, tool_id: str) -> Optional[models.Projectsteptool]:
         row = (await self._conn.execute(sqlalchemy.text(CREATE_PROJECT_STEP_TOOL), {"p1": project_id, "p2": step_id, "p3": tool_id})).first()
         if row is None:
             return None
@@ -86,10 +86,10 @@ class AsyncQuerier:
             tool_id=row[2],
         )
 
-    async def delete_project_step_tool(self, *, project_id: Any, step_id: Any, tool_id: Any) -> None:
+    async def delete_project_step_tool(self, *, project_id: str, step_id: str, tool_id: str) -> None:
         await self._conn.execute(sqlalchemy.text(DELETE_PROJECT_STEP_TOOL), {"p1": project_id, "p2": step_id, "p3": tool_id})
 
-    async def get_project_step_tools(self, *, project_id: Any) -> AsyncIterator[models.Projectsteptool]:
+    async def get_project_step_tools(self, *, project_id: str) -> AsyncIterator[models.Projectsteptool]:
         result = await self._conn.stream(sqlalchemy.text(GET_PROJECT_STEP_TOOLS), {"p1": project_id})
         async for row in result:
             yield models.Projectsteptool(
@@ -98,7 +98,7 @@ class AsyncQuerier:
                 tool_id=row[2],
             )
 
-    async def get_tools_project_step(self, *, project_id: Any, step_id: Any) -> AsyncIterator[models.Projectsteptool]:
+    async def get_tools_project_step(self, *, project_id: str, step_id: str) -> AsyncIterator[models.Projectsteptool]:
         result = await self._conn.stream(sqlalchemy.text(GET_TOOLS_PROJECT_STEP), {"p1": project_id, "p2": step_id})
         async for row in result:
             yield models.Projectsteptool(

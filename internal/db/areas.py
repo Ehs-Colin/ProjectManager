@@ -2,38 +2,38 @@
 # versions:
 #   sqlc v1.31.1
 # source: areas.sql
-from typing import Any, AsyncIterator, Iterator, Optional
+from typing import AsyncIterator, Iterator, Optional
 
 import sqlalchemy
 import sqlalchemy.ext.asyncio
 
-from db import models
+from internal.db import models
 
 
 CREATE_AREA = """-- name: create_area \\:one
 INSERT INTO areas (id, create_at, update_at, name, description)
 VALUES (
-    ?,
-    NOW(),
-    NOW(),
-    ?,
-    ?
+    :p1,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    :p2,
+    :p3
 ) RETURNING id, create_at, update_at, name, description
 """
 
 
 DELETE_AREA = """-- name: delete_area \\:exec
-DELETE FROM areas WHERE id = ?
+DELETE FROM areas WHERE id = :p1
 """
 
 
 GET_AREA_BY_ID = """-- name: get_area_by_id \\:one
-SELECT id, create_at, update_at, name, description FROM areas WHERE id = ?
+SELECT id, create_at, update_at, name, description FROM areas WHERE id = :p1
 """
 
 
 GET_AREA_BY_NAME = """-- name: get_area_by_name \\:one
-SELECT id, create_at, update_at, name, description FROM areas WHERE name = ?
+SELECT id, create_at, update_at, name, description FROM areas WHERE name = :p1
 """
 
 
@@ -43,7 +43,7 @@ SELECT id, create_at, update_at, name, description FROM areas
 
 
 UPDATE_AREA = """-- name: update_area \\:exec
-UPDATE areas SET name = ?, description = ?, update_at = NOW() WHERE id = ?
+UPDATE areas SET name = :p2, description = :p3, update_at = CURRENT_TIMESTAMP WHERE id = :p1
 """
 
 
@@ -51,7 +51,7 @@ class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
 
-    def create_area(self, *, id: Any, name: Any, description: Optional[Any]) -> Optional[models.Area]:
+    def create_area(self, *, id: str, name: str, description: Optional[str]) -> Optional[models.Area]:
         row = self._conn.execute(sqlalchemy.text(CREATE_AREA), {"p1": id, "p2": name, "p3": description}).first()
         if row is None:
             return None
@@ -63,10 +63,10 @@ class Querier:
             description=row[4],
         )
 
-    def delete_area(self, *, id: Any) -> None:
+    def delete_area(self, *, id: str) -> None:
         self._conn.execute(sqlalchemy.text(DELETE_AREA), {"p1": id})
 
-    def get_area_by_id(self, *, id: Any) -> Optional[models.Area]:
+    def get_area_by_id(self, *, id: str) -> Optional[models.Area]:
         row = self._conn.execute(sqlalchemy.text(GET_AREA_BY_ID), {"p1": id}).first()
         if row is None:
             return None
@@ -78,7 +78,7 @@ class Querier:
             description=row[4],
         )
 
-    def get_area_by_name(self, *, name: Any) -> Optional[models.Area]:
+    def get_area_by_name(self, *, name: str) -> Optional[models.Area]:
         row = self._conn.execute(sqlalchemy.text(GET_AREA_BY_NAME), {"p1": name}).first()
         if row is None:
             return None
@@ -101,15 +101,15 @@ class Querier:
                 description=row[4],
             )
 
-    def update_area(self, *, name: Any, description: Optional[Any], id: Any) -> None:
-        self._conn.execute(sqlalchemy.text(UPDATE_AREA), {"p1": name, "p2": description, "p3": id})
+    def update_area(self, *, id: str, name: str, description: Optional[str]) -> None:
+        self._conn.execute(sqlalchemy.text(UPDATE_AREA), {"p1": id, "p2": name, "p3": description})
 
 
 class AsyncQuerier:
     def __init__(self, conn: sqlalchemy.ext.asyncio.AsyncConnection):
         self._conn = conn
 
-    async def create_area(self, *, id: Any, name: Any, description: Optional[Any]) -> Optional[models.Area]:
+    async def create_area(self, *, id: str, name: str, description: Optional[str]) -> Optional[models.Area]:
         row = (await self._conn.execute(sqlalchemy.text(CREATE_AREA), {"p1": id, "p2": name, "p3": description})).first()
         if row is None:
             return None
@@ -121,10 +121,10 @@ class AsyncQuerier:
             description=row[4],
         )
 
-    async def delete_area(self, *, id: Any) -> None:
+    async def delete_area(self, *, id: str) -> None:
         await self._conn.execute(sqlalchemy.text(DELETE_AREA), {"p1": id})
 
-    async def get_area_by_id(self, *, id: Any) -> Optional[models.Area]:
+    async def get_area_by_id(self, *, id: str) -> Optional[models.Area]:
         row = (await self._conn.execute(sqlalchemy.text(GET_AREA_BY_ID), {"p1": id})).first()
         if row is None:
             return None
@@ -136,7 +136,7 @@ class AsyncQuerier:
             description=row[4],
         )
 
-    async def get_area_by_name(self, *, name: Any) -> Optional[models.Area]:
+    async def get_area_by_name(self, *, name: str) -> Optional[models.Area]:
         row = (await self._conn.execute(sqlalchemy.text(GET_AREA_BY_NAME), {"p1": name})).first()
         if row is None:
             return None
@@ -159,5 +159,5 @@ class AsyncQuerier:
                 description=row[4],
             )
 
-    async def update_area(self, *, name: Any, description: Optional[Any], id: Any) -> None:
-        await self._conn.execute(sqlalchemy.text(UPDATE_AREA), {"p1": name, "p2": description, "p3": id})
+    async def update_area(self, *, id: str, name: str, description: Optional[str]) -> None:
+        await self._conn.execute(sqlalchemy.text(UPDATE_AREA), {"p1": id, "p2": name, "p3": description})

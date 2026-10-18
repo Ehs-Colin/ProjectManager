@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE Projects (
-    id uuid PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     create_at TIMESTAMP NOT NULL,
     update_at TIMESTAMP NOT NULL,
     name TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE Projects (
 );
 
 CREATE TABLE Areas (
-    id uuid PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     create_at TIMESTAMP NOT NULL,
     update_at TIMESTAMP NOT NULL,
     name TEXT NOT NULL,
@@ -20,8 +20,8 @@ CREATE TABLE Areas (
 );
 
 CREATE TABLE ProjectAreas (
-    project_id uuid NOT NULL,
-    area_id uuid NOT NULL,
+    project_id TEXT NOT NULL,
+    area_id TEXT NOT NULL,
     notes TEXT,
     PRIMARY KEY (project_id, area_id),
     FOREIGN KEY (project_id) REFERENCES Projects(id),
@@ -29,8 +29,8 @@ CREATE TABLE ProjectAreas (
 );
 
 CREATE TABLE ProjectSteps (
-    id uuid NOT NULL,
-    project_id uuid NOT NULL,
+    id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
     create_at TIMESTAMP NOT NULL,
     update_at TIMESTAMP NOT NULL,
     name TEXT NOT NULL,
@@ -44,9 +44,9 @@ CREATE TABLE ProjectSteps (
 );
 
 CREATE TABLE ProjectStepTools (
-    project_id uuid NOT NULL,
-    step_id uuid NOT NULL,
-    tool_id uuid NOT NULL,
+    project_id TEXT NOT NULL,
+    step_id TEXT NOT NULL,
+    tool_id TEXT NOT NULL,
     PRIMARY KEY (project_id, step_id, tool_id),
     FOREIGN KEY (project_id) REFERENCES Projects(id),
     FOREIGN KEY (step_id) REFERENCES ProjectSteps(id),
@@ -54,7 +54,7 @@ CREATE TABLE ProjectStepTools (
 );
 
 create table Tools (
-    id uuid PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     create_at TIMESTAMP NOT NULL,
     update_at TIMESTAMP NOT NULL,
     name TEXT NOT NULL,

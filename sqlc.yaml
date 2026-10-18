@@ -7,12 +7,12 @@ plugins:
 sql:
     - schema: "sql/schema"
       queries: "sql/queries"
-      engine: sqlite
+      engine: postgresql
       codegen:
           - out: "internal/db"
             plugin: py
             options:
-                package: db
+                package: internal.db
                 emit_sync_querier: true
                 emit_async_querier: true
                 emit_pydantic_models: true

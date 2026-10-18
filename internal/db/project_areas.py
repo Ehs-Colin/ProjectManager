@@ -2,20 +2,20 @@
 # versions:
 #   sqlc v1.31.1
 # source: project_areas.sql
-from typing import Any, AsyncIterator, Iterator, Optional
+from typing import AsyncIterator, Iterator, Optional
 
 import sqlalchemy
 import sqlalchemy.ext.asyncio
 
-from db import models
+from internal.db import models
 
 
 CREATE_PROJECT_AREA = """-- name: create_project_area \\:one
 INSERT INTO ProjectAreas (project_id, area_id, notes)
 VALUES (
-    ?,
-    ?,
-    ?
+    :p1,
+    :p2,
+    :p3
 )
 RETURNING project_id, area_id, notes
 """
@@ -23,24 +23,24 @@ RETURNING project_id, area_id, notes
 
 DELETE_PROJECT_AREA = """-- name: delete_project_area \\:exec
 DELETE FROM ProjectAreas
-WHERE project_id = ? AND area_id = ?
+WHERE project_id = :p1 AND area_id = :p2
 """
 
 
 GET_AREA_PROJECTS = """-- name: get_area_projects \\:many
-SELECT project_id, area_id, notes FROM ProjectAreas WHERE area_id = ?
+SELECT project_id, area_id, notes FROM ProjectAreas WHERE area_id = :p1
 """
 
 
 GET_PROJECT_AREAS = """-- name: get_project_areas \\:many
-SELECT project_id, area_id, notes FROM ProjectAreas WHERE project_id = ?
+SELECT project_id, area_id, notes FROM ProjectAreas WHERE project_id = :p1
 """
 
 
 UPDATE_PROJECT_AREA = """-- name: update_project_area \\:one
 UPDATE ProjectAreas
-SET notes = ?
-WHERE project_id = ? AND area_id = ?
+SET notes = :p3
+WHERE project_id = :p1 AND area_id = :p2
 RETURNING project_id, area_id, notes
 """
 
@@ -49,7 +49,7 @@ class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
 
-    def create_project_area(self, *, project_id: Any, area_id: Any, notes: Optional[Any]) -> Optional[models.Projectarea]:
+    def create_project_area(self, *, project_id: str, area_id: str, notes: Optional[str]) -> Optional[models.Projectarea]:
         row = self._conn.execute(sqlalchemy.text(CREATE_PROJECT_AREA), {"p1": project_id, "p2": area_id, "p3": notes}).first()
         if row is None:
             return None
@@ -59,10 +59,10 @@ class Querier:
             notes=row[2],
         )
 
-    def delete_project_area(self, *, project_id: Any, area_id: Any) -> None:
+    def delete_project_area(self, *, project_id: str, area_id: str) -> None:
         self._conn.execute(sqlalchemy.text(DELETE_PROJECT_AREA), {"p1": project_id, "p2": area_id})
 
-    def get_area_projects(self, *, area_id: Any) -> Iterator[models.Projectarea]:
+    def get_area_projects(self, *, area_id: str) -> Iterator[models.Projectarea]:
         result = self._conn.execute(sqlalchemy.text(GET_AREA_PROJECTS), {"p1": area_id})
         for row in result:
             yield models.Projectarea(
@@ -71,7 +71,7 @@ class Querier:
                 notes=row[2],
             )
 
-    def get_project_areas(self, *, project_id: Any) -> Iterator[models.Projectarea]:
+    def get_project_areas(self, *, project_id: str) -> Iterator[models.Projectarea]:
         result = self._conn.execute(sqlalchemy.text(GET_PROJECT_AREAS), {"p1": project_id})
         for row in result:
             yield models.Projectarea(
@@ -80,8 +80,8 @@ class Querier:
                 notes=row[2],
             )
 
-    def update_project_area(self, *, notes: Optional[Any], project_id: Any, area_id: Any) -> Optional[models.Projectarea]:
-        row = self._conn.execute(sqlalchemy.text(UPDATE_PROJECT_AREA), {"p1": notes, "p2": project_id, "p3": area_id}).first()
+    def update_project_area(self, *, project_id: str, area_id: str, notes: Optional[str]) -> Optional[models.Projectarea]:
+        row = self._conn.execute(sqlalchemy.text(UPDATE_PROJECT_AREA), {"p1": project_id, "p2": area_id, "p3": notes}).first()
         if row is None:
             return None
         return models.Projectarea(
@@ -95,7 +95,7 @@ class AsyncQuerier:
     def __init__(self, conn: sqlalchemy.ext.asyncio.AsyncConnection):
         self._conn = conn
 
-    async def create_project_area(self, *, project_id: Any, area_id: Any, notes: Optional[Any]) -> Optional[models.Projectarea]:
+    async def create_project_area(self, *, project_id: str, area_id: str, notes: Optional[str]) -> Optional[models.Projectarea]:
         row = (await self._conn.execute(sqlalchemy.text(CREATE_PROJECT_AREA), {"p1": project_id, "p2": area_id, "p3": notes})).first()
         if row is None:
             return None
@@ -105,10 +105,10 @@ class AsyncQuerier:
             notes=row[2],
         )
 
-    async def delete_project_area(self, *, project_id: Any, area_id: Any) -> None:
+    async def delete_project_area(self, *, project_id: str, area_id: str) -> None:
         await self._conn.execute(sqlalchemy.text(DELETE_PROJECT_AREA), {"p1": project_id, "p2": area_id})
 
-    async def get_area_projects(self, *, area_id: Any) -> AsyncIterator[models.Projectarea]:
+    async def get_area_projects(self, *, area_id: str) -> AsyncIterator[models.Projectarea]:
         result = await self._conn.stream(sqlalchemy.text(GET_AREA_PROJECTS), {"p1": area_id})
         async for row in result:
             yield models.Projectarea(
@@ -117,7 +117,7 @@ class AsyncQuerier:
                 notes=row[2],
             )
 
-    async def get_project_areas(self, *, project_id: Any) -> AsyncIterator[models.Projectarea]:
+    async def get_project_areas(self, *, project_id: str) -> AsyncIterator[models.Projectarea]:
         result = await self._conn.stream(sqlalchemy.text(GET_PROJECT_AREAS), {"p1": project_id})
         async for row in result:
             yield models.Projectarea(
@@ -126,8 +126,8 @@ class AsyncQuerier:
                 notes=row[2],
             )
 
-    async def update_project_area(self, *, notes: Optional[Any], project_id: Any, area_id: Any) -> Optional[models.Projectarea]:
-        row = (await self._conn.execute(sqlalchemy.text(UPDATE_PROJECT_AREA), {"p1": notes, "p2": project_id, "p3": area_id})).first()
+    async def update_project_area(self, *, project_id: str, area_id: str, notes: Optional[str]) -> Optional[models.Projectarea]:
+        row = (await self._conn.execute(sqlalchemy.text(UPDATE_PROJECT_AREA), {"p1": project_id, "p2": area_id, "p3": notes})).first()
         if row is None:
             return None
         return models.Projectarea(

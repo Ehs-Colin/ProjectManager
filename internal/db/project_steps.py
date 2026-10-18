@@ -3,74 +3,74 @@
 #   sqlc v1.31.1
 # source: project_steps.sql
 import pydantic
-from typing import Any, AsyncIterator, Iterator, Optional
+from typing import AsyncIterator, Iterator, Optional
 
 import sqlalchemy
 import sqlalchemy.ext.asyncio
 
-from db import models
+from internal.db import models
 
 
 CREATE_PROJECT_STEP = """-- name: create_project_step \\:one
 INSERT INTO ProjectSteps (id, project_id, create_at, update_at, name, description, completion_percent, order_id, PerformStepValue, ProjectValue)
 VALUES (
-    ?,
-    ?,
-    NOW(),
-    NOW(),
-    ?,
-    ?,
-    ?,
-    ?,
-    ?,
-    ?
+    :p1,
+    :p2,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    :p3,
+    :p4,
+    :p5,
+    :p6,
+    :p7,
+    :p8
 ) RETURNING id, project_id, create_at, update_at, name, description, completion_percent, order_id, performstepvalue, projectvalue
 """
 
 
 class CreateProjectStepParams(pydantic.BaseModel):
-    id: Any
-    project_id: Any
-    name: Any
-    description: Optional[Any]
-    completion_percent: Optional[Any]
-    order_id: Optional[Any]
-    performstepvalue: Optional[Any]
-    projectvalue: Optional[Any]
+    id: str
+    project_id: str
+    name: str
+    description: Optional[str]
+    completion_percent: Optional[float]
+    order_id: Optional[int]
+    performstepvalue: Optional[int]
+    projectvalue: Optional[int]
 
 
 DELETE_PROJECT_STEP = """-- name: delete_project_step \\:exec
-DELETE FROM ProjectSteps WHERE id = ?
+DELETE FROM ProjectSteps WHERE id = :p1
 """
 
 
 GET_PROJECT_STEPS_BY_PROJECT_ID = """-- name: get_project_steps_by_project_id \\:many
-SELECT id, project_id, create_at, update_at, name, description, completion_percent, order_id, performstepvalue, projectvalue FROM ProjectSteps WHERE project_id = ?
+SELECT id, project_id, create_at, update_at, name, description, completion_percent, order_id, performstepvalue, projectvalue FROM ProjectSteps WHERE project_id = :p1
 """
 
 
 UPDATE_PROJECT_STEP = """-- name: update_project_step \\:one
 UPDATE ProjectSteps
-SET name = ?,
-    description = ?,
-    completion_percent = ?,
-    order_id = ?,
-    PerformStepValue = ?,
-    ProjectValue = ?,
-    update_at = NOW()
-WHERE id = ?
+SET name = :p2,
+    description = :p3,
+    completion_percent = :p4,
+    order_id = :p5,
+    PerformStepValue = :p6,
+    ProjectValue = :p7,
+    update_at = CURRENT_TIMESTAMP
+WHERE id = :p1
 RETURNING id, project_id, create_at, update_at, name, description, completion_percent, order_id, performstepvalue, projectvalue
 """
 
 
 class UpdateProjectStepParams(pydantic.BaseModel):
-    name: Any
-    description: Optional[Any]
-    completion_percent: Optional[Any]
-    order_id: Optional[Any]
-    performstepvalue: Optional[Any]
-    projectvalue: Optional[Any]
-    id: Any
+    id: str
+    name: str
+    description: Optional[str]
+    completion_percent: Optional[float]
+    order_id: Optional[int]
+    performstepvalue: Optional[int]
+    projectvalue: Optional[int]
 
 
 class Querier:
@@ -103,10 +103,10 @@ class Querier:
             projectvalue=row[9],
         )
 
-    def delete_project_step(self, *, id: Any) -> None:
+    def delete_project_step(self, *, id: str) -> None:
         self._conn.execute(sqlalchemy.text(DELETE_PROJECT_STEP), {"p1": id})
 
-    def get_project_steps_by_project_id(self, *, project_id: Any) -> Iterator[models.Projectstep]:
+    def get_project_steps_by_project_id(self, *, project_id: str) -> Iterator[models.Projectstep]:
         result = self._conn.execute(sqlalchemy.text(GET_PROJECT_STEPS_BY_PROJECT_ID), {"p1": project_id})
         for row in result:
             yield models.Projectstep(
@@ -124,13 +124,13 @@ class Querier:
 
     def update_project_step(self, arg: UpdateProjectStepParams) -> Optional[models.Projectstep]:
         row = self._conn.execute(sqlalchemy.text(UPDATE_PROJECT_STEP), {
-            "p1": arg.name,
-            "p2": arg.description,
-            "p3": arg.completion_percent,
-            "p4": arg.order_id,
-            "p5": arg.performstepvalue,
-            "p6": arg.projectvalue,
-            "p7": arg.id,
+            "p1": arg.id,
+            "p2": arg.name,
+            "p3": arg.description,
+            "p4": arg.completion_percent,
+            "p5": arg.order_id,
+            "p6": arg.performstepvalue,
+            "p7": arg.projectvalue,
         }).first()
         if row is None:
             return None
@@ -178,10 +178,10 @@ class AsyncQuerier:
             projectvalue=row[9],
         )
 
-    async def delete_project_step(self, *, id: Any) -> None:
+    async def delete_project_step(self, *, id: str) -> None:
         await self._conn.execute(sqlalchemy.text(DELETE_PROJECT_STEP), {"p1": id})
 
-    async def get_project_steps_by_project_id(self, *, project_id: Any) -> AsyncIterator[models.Projectstep]:
+    async def get_project_steps_by_project_id(self, *, project_id: str) -> AsyncIterator[models.Projectstep]:
         result = await self._conn.stream(sqlalchemy.text(GET_PROJECT_STEPS_BY_PROJECT_ID), {"p1": project_id})
         async for row in result:
             yield models.Projectstep(
@@ -199,13 +199,13 @@ class AsyncQuerier:
 
     async def update_project_step(self, arg: UpdateProjectStepParams) -> Optional[models.Projectstep]:
         row = (await self._conn.execute(sqlalchemy.text(UPDATE_PROJECT_STEP), {
-            "p1": arg.name,
-            "p2": arg.description,
-            "p3": arg.completion_percent,
-            "p4": arg.order_id,
-            "p5": arg.performstepvalue,
-            "p6": arg.projectvalue,
-            "p7": arg.id,
+            "p1": arg.id,
+            "p2": arg.name,
+            "p3": arg.description,
+            "p4": arg.completion_percent,
+            "p5": arg.order_id,
+            "p6": arg.performstepvalue,
+            "p7": arg.projectvalue,
         })).first()
         if row is None:
             return None

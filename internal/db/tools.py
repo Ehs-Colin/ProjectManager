@@ -2,38 +2,38 @@
 # versions:
 #   sqlc v1.31.1
 # source: tools.sql
-from typing import Any, AsyncIterator, Iterator, Optional
+from typing import AsyncIterator, Iterator, Optional
 
 import sqlalchemy
 import sqlalchemy.ext.asyncio
 
-from db import models
+from internal.db import models
 
 
 CREATE_TOOL = """-- name: create_tool \\:one
 INSERT INTO tools (id, create_at, update_at, name, description)
 VALUES (
-    ?,
-    NOW(),
-    NOW(),
-    ?,
-    ?
+    :p1,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    :p2,
+    :p3
 ) RETURNING id, create_at, update_at, name, description
 """
 
 
 DELETE_TOOL = """-- name: delete_tool \\:exec
-DELETE FROM tools WHERE id = ?
+DELETE FROM tools WHERE id = :p1
 """
 
 
 GET_TOOL_BY_NAME = """-- name: get_tool_by_name \\:one
-SELECT id, create_at, update_at, name, description FROM tools WHERE name = ?
+SELECT id, create_at, update_at, name, description FROM tools WHERE name = :p1
 """
 
 
 GET_TOOLBY_ID = """-- name: get_toolby_id \\:one
-SELECT id, create_at, update_at, name, description FROM tools WHERE id = ?
+SELECT id, create_at, update_at, name, description FROM tools WHERE id = :p1
 """
 
 
@@ -44,8 +44,8 @@ SELECT id, create_at, update_at, name, description FROM tools
 
 UPDATE_TOOL = """-- name: update_tool \\:one
 UPDATE tools
-SET name = ?, description = ?, update_at = NOW()
-WHERE id = ?
+SET name = :p2, description = :p3, update_at = CURRENT_TIMESTAMP
+WHERE id = :p1
 RETURNING id, create_at, update_at, name, description
 """
 
@@ -54,7 +54,7 @@ class Querier:
     def __init__(self, conn: sqlalchemy.engine.Connection):
         self._conn = conn
 
-    def create_tool(self, *, id: Any, name: Any, description: Optional[Any]) -> Optional[models.Tool]:
+    def create_tool(self, *, id: str, name: str, description: Optional[str]) -> Optional[models.Tool]:
         row = self._conn.execute(sqlalchemy.text(CREATE_TOOL), {"p1": id, "p2": name, "p3": description}).first()
         if row is None:
             return None
@@ -66,10 +66,10 @@ class Querier:
             description=row[4],
         )
 
-    def delete_tool(self, *, id: Any) -> None:
+    def delete_tool(self, *, id: str) -> None:
         self._conn.execute(sqlalchemy.text(DELETE_TOOL), {"p1": id})
 
-    def get_tool_by_name(self, *, name: Any) -> Optional[models.Tool]:
+    def get_tool_by_name(self, *, name: str) -> Optional[models.Tool]:
         row = self._conn.execute(sqlalchemy.text(GET_TOOL_BY_NAME), {"p1": name}).first()
         if row is None:
             return None
@@ -81,7 +81,7 @@ class Querier:
             description=row[4],
         )
 
-    def get_toolby_id(self, *, id: Any) -> Optional[models.Tool]:
+    def get_toolby_id(self, *, id: str) -> Optional[models.Tool]:
         row = self._conn.execute(sqlalchemy.text(GET_TOOLBY_ID), {"p1": id}).first()
         if row is None:
             return None
@@ -104,8 +104,8 @@ class Querier:
                 description=row[4],
             )
 
-    def update_tool(self, *, name: Any, description: Optional[Any], id: Any) -> Optional[models.Tool]:
-        row = self._conn.execute(sqlalchemy.text(UPDATE_TOOL), {"p1": name, "p2": description, "p3": id}).first()
+    def update_tool(self, *, id: str, name: str, description: Optional[str]) -> Optional[models.Tool]:
+        row = self._conn.execute(sqlalchemy.text(UPDATE_TOOL), {"p1": id, "p2": name, "p3": description}).first()
         if row is None:
             return None
         return models.Tool(
@@ -121,7 +121,7 @@ class AsyncQuerier:
     def __init__(self, conn: sqlalchemy.ext.asyncio.AsyncConnection):
         self._conn = conn
 
-    async def create_tool(self, *, id: Any, name: Any, description: Optional[Any]) -> Optional[models.Tool]:
+    async def create_tool(self, *, id: str, name: str, description: Optional[str]) -> Optional[models.Tool]:
         row = (await self._conn.execute(sqlalchemy.text(CREATE_TOOL), {"p1": id, "p2": name, "p3": description})).first()
         if row is None:
             return None
@@ -133,10 +133,10 @@ class AsyncQuerier:
             description=row[4],
         )
 
-    async def delete_tool(self, *, id: Any) -> None:
+    async def delete_tool(self, *, id: str) -> None:
         await self._conn.execute(sqlalchemy.text(DELETE_TOOL), {"p1": id})
 
-    async def get_tool_by_name(self, *, name: Any) -> Optional[models.Tool]:
+    async def get_tool_by_name(self, *, name: str) -> Optional[models.Tool]:
         row = (await self._conn.execute(sqlalchemy.text(GET_TOOL_BY_NAME), {"p1": name})).first()
         if row is None:
             return None
@@ -148,7 +148,7 @@ class AsyncQuerier:
             description=row[4],
         )
 
-    async def get_toolby_id(self, *, id: Any) -> Optional[models.Tool]:
+    async def get_toolby_id(self, *, id: str) -> Optional[models.Tool]:
         row = (await self._conn.execute(sqlalchemy.text(GET_TOOLBY_ID), {"p1": id})).first()
         if row is None:
             return None
@@ -171,8 +171,8 @@ class AsyncQuerier:
                 description=row[4],
             )
 
-    async def update_tool(self, *, name: Any, description: Optional[Any], id: Any) -> Optional[models.Tool]:
-        row = (await self._conn.execute(sqlalchemy.text(UPDATE_TOOL), {"p1": name, "p2": description, "p3": id})).first()
+    async def update_tool(self, *, id: str, name: str, description: Optional[str]) -> Optional[models.Tool]:
+        row = (await self._conn.execute(sqlalchemy.text(UPDATE_TOOL), {"p1": id, "p2": name, "p3": description})).first()
         if row is None:
             return None
         return models.Tool(

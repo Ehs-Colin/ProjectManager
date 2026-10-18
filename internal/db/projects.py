@@ -3,12 +3,12 @@
 #   sqlc v1.31.1
 # source: projects.sql
 import pydantic
-from typing import Any, AsyncIterator, Iterator, Optional
+from typing import AsyncIterator, Iterator, Optional
 
 import sqlalchemy
 import sqlalchemy.ext.asyncio
 
-from db import models
+from internal.db import models
 
 
 CREATE_PROJECT = """-- name: create_project \\:one
@@ -23,41 +23,41 @@ INSERT INTO projects (
     active,
     complete
 ) VALUES (
-    ?,
-    NOW(),
-    NOW(),
-    ?,
-    ?,
-    ?,
-    ?,
-    ?,
-    ?
+    :p1,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    :p2,
+    :p3,
+    :p4,
+    :p5,
+    :p6,
+    :p7
 ) RETURNING id, create_at, update_at, name, description, budget, completion_percent, active, complete
 """
 
 
 class CreateProjectParams(pydantic.BaseModel):
-    id: Any
-    name: Any
-    description: Optional[Any]
-    budget: Optional[Any]
-    completion_percent: Optional[Any]
-    active: Optional[Any]
-    complete: Optional[Any]
+    id: str
+    name: str
+    description: Optional[str]
+    budget: Optional[int]
+    completion_percent: Optional[float]
+    active: Optional[bool]
+    complete: Optional[bool]
 
 
 DELETE_PROJECT = """-- name: delete_project \\:exec
-DELETE FROM projects WHERE id = ?
+DELETE FROM projects WHERE id = :p1
 """
 
 
 GET_PROJECT_BY_ID = """-- name: get_project_by_id \\:one
-SELECT id, create_at, update_at, name, description, budget, completion_percent, active, complete FROM projects WHERE id = ?
+SELECT id, create_at, update_at, name, description, budget, completion_percent, active, complete FROM projects WHERE id = :p1
 """
 
 
 GET_PROJECT_BY_NAME = """-- name: get_project_by_name \\:one
-SELECT id, create_at, update_at, name, description, budget, completion_percent, active, complete FROM projects WHERE name = ?
+SELECT id, create_at, update_at, name, description, budget, completion_percent, active, complete FROM projects WHERE name = :p1
 """
 
 
@@ -68,26 +68,26 @@ SELECT id, create_at, update_at, name, description, budget, completion_percent, 
 
 UPDATE_PROJECT = """-- name: update_project \\:one
 UPDATE projects SET
-    name = ?,
-    description = ?,
-    budget = ?,
-    completion_percent = ?,
-    active = ?,
-    complete = ?,
-    update_at = NOW()
-WHERE id = ?
+    name = :p2,
+    description = :p3,
+    budget = :p4,
+    completion_percent = :p5,
+    active = :p6,
+    complete = :p7,
+    update_at = CURRENT_TIMESTAMP
+WHERE id = :p1
 RETURNING id, create_at, update_at, name, description, budget, completion_percent, active, complete
 """
 
 
 class UpdateProjectParams(pydantic.BaseModel):
-    name: Any
-    description: Optional[Any]
-    budget: Optional[Any]
-    completion_percent: Optional[Any]
-    active: Optional[Any]
-    complete: Optional[Any]
-    id: Any
+    id: str
+    name: str
+    description: Optional[str]
+    budget: Optional[int]
+    completion_percent: Optional[float]
+    active: Optional[bool]
+    complete: Optional[bool]
 
 
 class Querier:
@@ -118,10 +118,10 @@ class Querier:
             complete=row[8],
         )
 
-    def delete_project(self, *, id: Any) -> None:
+    def delete_project(self, *, id: str) -> None:
         self._conn.execute(sqlalchemy.text(DELETE_PROJECT), {"p1": id})
 
-    def get_project_by_id(self, *, id: Any) -> Optional[models.Project]:
+    def get_project_by_id(self, *, id: str) -> Optional[models.Project]:
         row = self._conn.execute(sqlalchemy.text(GET_PROJECT_BY_ID), {"p1": id}).first()
         if row is None:
             return None
@@ -137,7 +137,7 @@ class Querier:
             complete=row[8],
         )
 
-    def get_project_by_name(self, *, name: Any) -> Optional[models.Project]:
+    def get_project_by_name(self, *, name: str) -> Optional[models.Project]:
         row = self._conn.execute(sqlalchemy.text(GET_PROJECT_BY_NAME), {"p1": name}).first()
         if row is None:
             return None
@@ -170,13 +170,13 @@ class Querier:
 
     def update_project(self, arg: UpdateProjectParams) -> Optional[models.Project]:
         row = self._conn.execute(sqlalchemy.text(UPDATE_PROJECT), {
-            "p1": arg.name,
-            "p2": arg.description,
-            "p3": arg.budget,
-            "p4": arg.completion_percent,
-            "p5": arg.active,
-            "p6": arg.complete,
-            "p7": arg.id,
+            "p1": arg.id,
+            "p2": arg.name,
+            "p3": arg.description,
+            "p4": arg.budget,
+            "p5": arg.completion_percent,
+            "p6": arg.active,
+            "p7": arg.complete,
         }).first()
         if row is None:
             return None
@@ -221,10 +221,10 @@ class AsyncQuerier:
             complete=row[8],
         )
 
-    async def delete_project(self, *, id: Any) -> None:
+    async def delete_project(self, *, id: str) -> None:
         await self._conn.execute(sqlalchemy.text(DELETE_PROJECT), {"p1": id})
 
-    async def get_project_by_id(self, *, id: Any) -> Optional[models.Project]:
+    async def get_project_by_id(self, *, id: str) -> Optional[models.Project]:
         row = (await self._conn.execute(sqlalchemy.text(GET_PROJECT_BY_ID), {"p1": id})).first()
         if row is None:
             return None
@@ -240,7 +240,7 @@ class AsyncQuerier:
             complete=row[8],
         )
 
-    async def get_project_by_name(self, *, name: Any) -> Optional[models.Project]:
+    async def get_project_by_name(self, *, name: str) -> Optional[models.Project]:
         row = (await self._conn.execute(sqlalchemy.text(GET_PROJECT_BY_NAME), {"p1": name})).first()
         if row is None:
             return None
@@ -273,13 +273,13 @@ class AsyncQuerier:
 
     async def update_project(self, arg: UpdateProjectParams) -> Optional[models.Project]:
         row = (await self._conn.execute(sqlalchemy.text(UPDATE_PROJECT), {
-            "p1": arg.name,
-            "p2": arg.description,
-            "p3": arg.budget,
-            "p4": arg.completion_percent,
-            "p5": arg.active,
-            "p6": arg.complete,
-            "p7": arg.id,
+            "p1": arg.id,
+            "p2": arg.name,
+            "p3": arg.description,
+            "p4": arg.budget,
+            "p5": arg.completion_percent,
+            "p6": arg.active,
+            "p7": arg.complete,
         })).first()
         if row is None:
             return None

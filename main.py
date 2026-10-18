@@ -2,36 +2,50 @@
 import sys
 from collections.abc import Callable
 
+import sqlalchemy
+
+import internal.projects
+
+DB_URL = "sqlite:///projects.db"
+
 Command = tuple[str, Callable[..., str], list[str]]
 
 
-def create_project(name: str, description: str = "") -> str:
-    # TODO: persist the project
-    return f"Created project '{name}'"
+def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
+    result = None
+    if table_name == "project":
+        result = internal.projects.create_project(conn, args)
+    # TODO:
+    return f"Created '{table_name}'\n{result}"
 
 
-def get_project(name: str) -> str:
-    # TODO: look up the project
-    return f"Project '{name}'"
+def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
+    result = None
+    if table_name == "project":
+        result = internal.projects.get_project(conn, args[0])
+    # TODO:
+    return str(result)
 
 
-def update_project(name: str, field: str, value: str) -> str:
-    # TODO: apply the update
-    return f"Updated '{field}' on project '{name}' to '{value}'"
+def update(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
+    # TODO:
+    return f"Updated table '{table_name}'"
 
 
-def delete_project(name: str) -> str:
-    # TODO: remove the project
-    return f"Deleted project '{name}'"
+def delete(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
+    if table_name == "project":
+        return internal.projects.delete_project(conn, args[0])
+    # TODO:
+    return f"Deleted table '{table_name}'"
 
 
 def get_commands() -> list[Command]:
     """Return the available user commands as (name, function, arg_names) tuples."""
     return [
-        ("create_project", create_project, ["name", "description"]),
-        ("get_project", get_project, ["name"]),
-        ("update_project", update_project, ["name", "field", "value"]),
-        ("delete_project", delete_project, ["name"]),
+        ("create", create, ["name", "description"]),
+        ("get", get, ["name"]),
+        ("update", update, ["name", "field", "value"]),
+        ("delete", delete, ["name"]),
     ]
 
 
@@ -50,11 +64,17 @@ def main():
         sys.exit(1)
 
     func, _ = commands[command_name]
+    engine = sqlalchemy.create_engine(DB_URL)
     try:
-        print(func(*command_args))
+        table_name, *rest = command_args
+        with engine.begin() as conn:
+            print(func(conn, table_name, rest))
     except TypeError as e:
         print(f"Error: Bad arguments for {command_name}: {e}")
         sys.exit(1)
+    finally:
+        engine.dispose()
 
-    if __name__ == "__main__":
-        main()
+
+if __name__ == "__main__":
+    main()

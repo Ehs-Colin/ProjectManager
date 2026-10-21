@@ -3,7 +3,7 @@ CREATE TABLE Projects (
     id TEXT PRIMARY KEY,
     create_at TIMESTAMP NOT NULL,
     update_at TIMESTAMP NOT NULL,
-    name TEXT NOT NULL,
+    name TEXT UNIQUE NOT NULL,
     description TEXT,
     budget INTEGER,
     completion_percent REAL,
@@ -15,7 +15,7 @@ CREATE TABLE Areas (
     id TEXT PRIMARY KEY,
     create_at TIMESTAMP NOT NULL,
     update_at TIMESTAMP NOT NULL,
-    name TEXT NOT NULL,
+    name TEXT UNIQUE NOT NULL,
     description TEXT
 );
 
@@ -57,7 +57,7 @@ create table Tools (
     id TEXT PRIMARY KEY,
     create_at TIMESTAMP NOT NULL,
     update_at TIMESTAMP NOT NULL,
-    name TEXT NOT NULL,
+    name TEXT UNIQUE NOT NULL,
     description TEXT
 );
 

@@ -13,39 +13,75 @@ Command = tuple[str, Callable[..., str], list[str]]
 
 def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
     result = None
-    if table_name == "project":
-        result = internal.projects.create_project(conn, args)
-    # TODO:
+    match table_name:
+        case "project":
+            result = internal.projects.create_project(conn, args)
+        case _:
+            return f"Invalid {table_name}: create aborted"
+
+    if result is None:
+        return f"Invalid {table_name}: create aborted"
     return f"Created '{table_name}'\n{result}"
 
 
 def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
+    if len(args) != 2 or args[0] not in ("--name", "--id"):
+        raise TypeError("get expects '--name <name>' or '--id <id>'")
+    flag, value = args
     result = None
-    if table_name == "project":
-        result = internal.projects.get_project(conn, args[0])
-    # TODO:
+    match table_name:
+        case "project":
+            result = internal.projects.get_project(
+                conn, value, by=flag.removeprefix("--")
+            )
+        case _:
+            return f"Invalid {table_name}: get aborted"
+    if result is None:
+        return f"{table_name} not found"
     return str(result)
 
 
+def get_list(
+    conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]
+) -> str:
+    match table_name:
+        case "project":
+            return str(internal.projects.list_projects(conn))
+        case _:
+            return f"Invalid {table_name}: list aborted"
+
+
 def update(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
-    # TODO:
-    return f"Updated table '{table_name}'"
+    result = None
+    match table_name:
+        case "project":
+            result = internal.projects.update_project(conn, args[0], args[1:])
+        case _:
+            return f"Invalid {table_name}: update aborted"
+    return str(result)
 
 
 def delete(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
-    if table_name == "project":
-        return internal.projects.delete_project(conn, args[0])
-    # TODO:
-    return f"Deleted table '{table_name}'"
+    match table_name:
+        case "project":
+            success = internal.projects.delete_project(conn, args[0])
+            return (
+                f"Deleted {table_name} '{args[0]}'"
+                if success
+                else f"Failed to delete {table_name} '{args[0]}'"
+            )
+        case _:
+            return f"Invalid {table_name}: delete aborted"
 
 
 def get_commands() -> list[Command]:
     """Return the available user commands as (name, function, arg_names) tuples."""
     return [
         ("create", create, ["name", "description"]),
-        ("get", get, ["name"]),
+        ("get", get, ["--name|--id", "value"]),
         ("update", update, ["name", "field", "value"]),
         ("delete", delete, ["name"]),
+        ("list", get_list, ["type"]),
     ]
 
 

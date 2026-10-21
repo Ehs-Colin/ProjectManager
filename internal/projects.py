@@ -1,7 +1,6 @@
 # Projects module for project manager
 import uuid
 from datetime import datetime
-from venv import create
 
 import sqlalchemy
 
@@ -56,7 +55,7 @@ class HomeProject(internal.db.models.Project):
 
     def __repr__(self) -> str:
         return f"""
-=== {self.name} - ({self.id}) ===
+=== PROJECT: {self.name} - ({self.id}) ===
  * description:        {self.description}
  * budget:             {self.budget}
  * completion_percent: {self.completion_percent}

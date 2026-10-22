@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 import sqlalchemy
 
+import internal.areas
 import internal.projects
 
 DB_URL = "sqlite:///projects.db"
@@ -16,6 +17,8 @@ def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
     match table_name:
         case "project":
             result = internal.projects.create_project(conn, args)
+        case "area":
+            result = internal.areas.create_area(conn, args)
         case _:
             return f"Invalid {table_name}: create aborted"
 
@@ -34,6 +37,8 @@ def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) ->
             result = internal.projects.get_project(
                 conn, value, by=flag.removeprefix("--")
             )
+        case "area":
+            result = internal.areas.get_area(conn, value, by=flag.removeprefix("--"))
         case _:
             return f"Invalid {table_name}: get aborted"
     if result is None:
@@ -47,6 +52,8 @@ def get_list(
     match table_name:
         case "project":
             return str(internal.projects.list_projects(conn))
+        case "area":
+            return str(internal.areas.list_areas(conn))
         case _:
             return f"Invalid {table_name}: list aborted"
 
@@ -56,6 +63,8 @@ def update(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
     match table_name:
         case "project":
             result = internal.projects.update_project(conn, args[0], args[1:])
+        case "area":
+            result = internal.areas.update_area(conn, args[0], args[1:])
         case _:
             return f"Invalid {table_name}: update aborted"
     return str(result)
@@ -65,6 +74,13 @@ def delete(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
     match table_name:
         case "project":
             success = internal.projects.delete_project(conn, args[0])
+            return (
+                f"Deleted {table_name} '{args[0]}'"
+                if success
+                else f"Failed to delete {table_name} '{args[0]}'"
+            )
+        case "area":
+            success = internal.areas.delete_area(conn, args[0])
             return (
                 f"Deleted {table_name} '{args[0]}'"
                 if success

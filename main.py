@@ -6,6 +6,7 @@ import sqlalchemy
 
 import internal.areas
 import internal.projects
+import internal.tools
 
 DB_URL = "sqlite:///projects.db"
 
@@ -19,6 +20,8 @@ def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
             result = internal.projects.create_project(conn, args)
         case "area":
             result = internal.areas.create_area(conn, args)
+        case "tool":
+            result = internal.tools.create_tool(conn, args)
         case _:
             return f"Invalid {table_name}: create aborted"
 
@@ -39,6 +42,8 @@ def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) ->
             )
         case "area":
             result = internal.areas.get_area(conn, value, by=flag.removeprefix("--"))
+        case "tool":
+            result = internal.tools.get_tool(conn, value, by=flag.removeprefix("--"))
         case _:
             return f"Invalid {table_name}: get aborted"
     if result is None:
@@ -54,6 +59,8 @@ def get_list(
             return str(internal.projects.list_projects(conn))
         case "area":
             return str(internal.areas.list_areas(conn))
+        case "tool":
+            return str(internal.tools.list_tools(conn))
         case _:
             return f"Invalid {table_name}: list aborted"
 
@@ -65,6 +72,8 @@ def update(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
             result = internal.projects.update_project(conn, args[0], args[1:])
         case "area":
             result = internal.areas.update_area(conn, args[0], args[1:])
+        case "tool":
+            result = internal.tools.update_tool(conn, args[0], args[1:])
         case _:
             return f"Invalid {table_name}: update aborted"
     return str(result)
@@ -81,6 +90,13 @@ def delete(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
             )
         case "area":
             success = internal.areas.delete_area(conn, args[0])
+            return (
+                f"Deleted {table_name} '{args[0]}'"
+                if success
+                else f"Failed to delete {table_name} '{args[0]}'"
+            )
+        case "tool":
+            success = internal.tools.delete_tool(conn, args[0])
             return (
                 f"Deleted {table_name} '{args[0]}'"
                 if success

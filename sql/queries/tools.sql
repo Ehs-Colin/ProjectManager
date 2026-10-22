@@ -11,7 +11,7 @@ VALUES (
 -- name: GetTools :many
 SELECT * FROM tools;
 
--- name: GetToolbyId :one
+-- name: GetToolById :one
 SELECT * FROM tools WHERE id = $1;
 
 -- name: GetToolByName :one

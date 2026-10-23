@@ -40,6 +40,7 @@ CREATE TABLE ProjectSteps (
     PerformStepValue INTEGER,
     ProjectValue INTEGER,
     PRIMARY KEY (id, project_id),
+    UNIQUE (project_id, name),
     FOREIGN KEY (project_id) REFERENCES Projects(id)
 );
 

@@ -16,6 +16,12 @@ VALUES (
 -- name: GetProjectStepsByProjectId :many
 SELECT * FROM ProjectSteps WHERE project_id = $1;
 
+-- name: GetProjectStepByName :one
+SELECT * FROM ProjectSteps WHERE project_id = $1 AND name = $2;
+
+-- name: GetProjectStepById :one
+SELECT * FROM ProjectSteps WHERE id = $1;
+
 -- name: UpdateProjectStep :one
 UPDATE ProjectSteps
 SET name = $2,

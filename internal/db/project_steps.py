@@ -44,6 +44,16 @@ DELETE FROM ProjectSteps WHERE id = :p1
 """
 
 
+GET_PROJECT_STEP_BY_ID = """-- name: get_project_step_by_id \\:one
+SELECT id, project_id, create_at, update_at, name, description, completion_percent, order_id, performstepvalue, projectvalue FROM ProjectSteps WHERE id = :p1
+"""
+
+
+GET_PROJECT_STEP_BY_NAME = """-- name: get_project_step_by_name \\:one
+SELECT id, project_id, create_at, update_at, name, description, completion_percent, order_id, performstepvalue, projectvalue FROM ProjectSteps WHERE project_id = :p1 AND name = :p2
+"""
+
+
 GET_PROJECT_STEPS_BY_PROJECT_ID = """-- name: get_project_steps_by_project_id \\:many
 SELECT id, project_id, create_at, update_at, name, description, completion_percent, order_id, performstepvalue, projectvalue FROM ProjectSteps WHERE project_id = :p1
 """
@@ -105,6 +115,40 @@ class Querier:
 
     def delete_project_step(self, *, id: str) -> None:
         self._conn.execute(sqlalchemy.text(DELETE_PROJECT_STEP), {"p1": id})
+
+    def get_project_step_by_id(self, *, id: str) -> Optional[models.Projectstep]:
+        row = self._conn.execute(sqlalchemy.text(GET_PROJECT_STEP_BY_ID), {"p1": id}).first()
+        if row is None:
+            return None
+        return models.Projectstep(
+            id=row[0],
+            project_id=row[1],
+            create_at=row[2],
+            update_at=row[3],
+            name=row[4],
+            description=row[5],
+            completion_percent=row[6],
+            order_id=row[7],
+            performstepvalue=row[8],
+            projectvalue=row[9],
+        )
+
+    def get_project_step_by_name(self, *, project_id: str, name: str) -> Optional[models.Projectstep]:
+        row = self._conn.execute(sqlalchemy.text(GET_PROJECT_STEP_BY_NAME), {"p1": project_id, "p2": name}).first()
+        if row is None:
+            return None
+        return models.Projectstep(
+            id=row[0],
+            project_id=row[1],
+            create_at=row[2],
+            update_at=row[3],
+            name=row[4],
+            description=row[5],
+            completion_percent=row[6],
+            order_id=row[7],
+            performstepvalue=row[8],
+            projectvalue=row[9],
+        )
 
     def get_project_steps_by_project_id(self, *, project_id: str) -> Iterator[models.Projectstep]:
         result = self._conn.execute(sqlalchemy.text(GET_PROJECT_STEPS_BY_PROJECT_ID), {"p1": project_id})
@@ -180,6 +224,40 @@ class AsyncQuerier:
 
     async def delete_project_step(self, *, id: str) -> None:
         await self._conn.execute(sqlalchemy.text(DELETE_PROJECT_STEP), {"p1": id})
+
+    async def get_project_step_by_id(self, *, id: str) -> Optional[models.Projectstep]:
+        row = (await self._conn.execute(sqlalchemy.text(GET_PROJECT_STEP_BY_ID), {"p1": id})).first()
+        if row is None:
+            return None
+        return models.Projectstep(
+            id=row[0],
+            project_id=row[1],
+            create_at=row[2],
+            update_at=row[3],
+            name=row[4],
+            description=row[5],
+            completion_percent=row[6],
+            order_id=row[7],
+            performstepvalue=row[8],
+            projectvalue=row[9],
+        )
+
+    async def get_project_step_by_name(self, *, project_id: str, name: str) -> Optional[models.Projectstep]:
+        row = (await self._conn.execute(sqlalchemy.text(GET_PROJECT_STEP_BY_NAME), {"p1": project_id, "p2": name})).first()
+        if row is None:
+            return None
+        return models.Projectstep(
+            id=row[0],
+            project_id=row[1],
+            create_at=row[2],
+            update_at=row[3],
+            name=row[4],
+            description=row[5],
+            completion_percent=row[6],
+            order_id=row[7],
+            performstepvalue=row[8],
+            projectvalue=row[9],
+        )
 
     async def get_project_steps_by_project_id(self, *, project_id: str) -> AsyncIterator[models.Projectstep]:
         result = await self._conn.stream(sqlalchemy.text(GET_PROJECT_STEPS_BY_PROJECT_ID), {"p1": project_id})

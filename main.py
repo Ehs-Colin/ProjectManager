@@ -34,14 +34,7 @@ def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
 
 
 def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
-    if table_name == "step":
-        if len(args) != 4 or args[0] not in ("--project-name", "--project-id"):
-            raise TypeError(
-                "get step expects '--project-name <name>' or '--project-id <id>' "
-                "followed by '--name <name>' or '--id <id>'"
-            )
-        project_flag, project, *args = args
-    if len(args) != 2 or args[0] not in ("--name", "--id"):
+    if table_name != "step" and (len(args) != 2 or args[0] not in ("--name", "--id")):
         raise TypeError("get expects '--name <name>' or '--id <id>'")
     flag, value = args
     result = None
@@ -55,6 +48,12 @@ def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) ->
         case "tool":
             result = internal.tools.get_tool(conn, value, by=flag.removeprefix("--"))
         case "step":
+            if len(args) != 4 or args[0] not in ("--project-name", "--project-id"):
+                raise TypeError(
+                    "get step expects '--project-name <name>' or '--project-id <id>' "
+                    "followed by '--name <name>' or '--id <id>'"
+                )
+            project_flag, project, *args = args
             result = internal.projectsteps.get_projectstep(
                 conn,
                 project,
@@ -85,12 +84,14 @@ def get_list(
                     "list step expects '--project-name <name>' or '--project-id <id>'"
                 )
             project_flag, project_value = args
-            project = internal.projects.get_project(
-                conn, project_value, by=project_flag.removeprefix("--project-")
+            steps = internal.projectsteps.list_projectsteps(
+                conn,
+                project_value,
+                project_by=project_flag.removeprefix("--project-"),
             )
-            if project is None:
+            if steps is None:
                 return "project not found"
-            return str(internal.projectsteps.list_projectsteps(conn, project.id))
+            return str(steps)
         case _:
             return f"Invalid {table_name}: list aborted"
 

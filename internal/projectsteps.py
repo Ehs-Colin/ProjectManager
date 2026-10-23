@@ -100,11 +100,24 @@ def delete_projectstep(conn: sqlalchemy.engine.Connection, step_id: str) -> bool
 
 
 def list_projectsteps(
-    conn: sqlalchemy.engine.Connection, project_id: str
+    conn: sqlalchemy.engine.Connection,
+    project: str,
+    project_by: str = "id",
 ) -> list[HomeProjectStep] | None:
+    if project_by not in ("name", "id"):
+        raise ValueError(
+            f"invalid project lookup type {project_by}; expected 'name' or 'id'"
+        )
+    project_query = internal.db.projects.Querier(conn)
+    if project_by == "name":
+        sqlProject = project_query.get_project_by_name(name=project)
+    else:
+        sqlProject = project_query.get_project_by_id(id=project)
+    if sqlProject is None:
+        return None
     query = internal.db.project_steps.Querier(conn)
     steps: list[HomeProjectStep] = []
-    for sqlStep in query.get_project_steps_by_project_id(project_id=project_id):
+    for sqlStep in query.get_project_steps_by_project_id(project_id=sqlProject.id):
         step = HomeProjectStep()
         step.ConvertFromSql(sqlStep)
         steps.append(step)

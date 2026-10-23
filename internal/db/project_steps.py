@@ -59,6 +59,11 @@ SELECT id, project_id, create_at, update_at, name, description, completion_perce
 """
 
 
+GET_PROJECT_STEPS_BY_PROJECT_NAME = """-- name: get_project_steps_by_project_name \\:many
+SELECT id, project_id, create_at, update_at, name, description, completion_percent, order_id, performstepvalue, projectvalue FROM ProjectSteps WHERE project_id IN (SELECT id FROM Projects WHERE projects.name = :p1)
+"""
+
+
 UPDATE_PROJECT_STEP = """-- name: update_project_step \\:one
 UPDATE ProjectSteps
 SET name = :p2,
@@ -152,6 +157,22 @@ class Querier:
 
     def get_project_steps_by_project_id(self, *, project_id: str) -> Iterator[models.Projectstep]:
         result = self._conn.execute(sqlalchemy.text(GET_PROJECT_STEPS_BY_PROJECT_ID), {"p1": project_id})
+        for row in result:
+            yield models.Projectstep(
+                id=row[0],
+                project_id=row[1],
+                create_at=row[2],
+                update_at=row[3],
+                name=row[4],
+                description=row[5],
+                completion_percent=row[6],
+                order_id=row[7],
+                performstepvalue=row[8],
+                projectvalue=row[9],
+            )
+
+    def get_project_steps_by_project_name(self, *, name: str) -> Iterator[models.Projectstep]:
+        result = self._conn.execute(sqlalchemy.text(GET_PROJECT_STEPS_BY_PROJECT_NAME), {"p1": name})
         for row in result:
             yield models.Projectstep(
                 id=row[0],
@@ -261,6 +282,22 @@ class AsyncQuerier:
 
     async def get_project_steps_by_project_id(self, *, project_id: str) -> AsyncIterator[models.Projectstep]:
         result = await self._conn.stream(sqlalchemy.text(GET_PROJECT_STEPS_BY_PROJECT_ID), {"p1": project_id})
+        async for row in result:
+            yield models.Projectstep(
+                id=row[0],
+                project_id=row[1],
+                create_at=row[2],
+                update_at=row[3],
+                name=row[4],
+                description=row[5],
+                completion_percent=row[6],
+                order_id=row[7],
+                performstepvalue=row[8],
+                projectvalue=row[9],
+            )
+
+    async def get_project_steps_by_project_name(self, *, name: str) -> AsyncIterator[models.Projectstep]:
+        result = await self._conn.stream(sqlalchemy.text(GET_PROJECT_STEPS_BY_PROJECT_NAME), {"p1": name})
         async for row in result:
             yield models.Projectstep(
                 id=row[0],

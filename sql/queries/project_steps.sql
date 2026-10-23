@@ -16,6 +16,9 @@ VALUES (
 -- name: GetProjectStepsByProjectId :many
 SELECT * FROM ProjectSteps WHERE project_id = $1;
 
+-- name: GetProjectStepsByProjectName :many
+SELECT * FROM ProjectSteps WHERE project_id IN (SELECT id FROM Projects WHERE projects.name = $1);
+
 -- name: GetProjectStepByName :one
 SELECT * FROM ProjectSteps WHERE project_id = $1 AND name = $2;
 

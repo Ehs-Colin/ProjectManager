@@ -112,11 +112,26 @@ def list_projectsteps(
 
 
 def get_projectstep(
-    conn: sqlalchemy.engine.Connection, project_id: str, lookup: str, by: str = "name"
+    conn: sqlalchemy.engine.Connection,
+    project: str,
+    lookup: str,
+    by: str = "name",
+    project_by: str = "id",
 ) -> HomeProjectStep | None:
     if by not in ("name", "id"):
         raise ValueError(f"invalid lookup type {by}; expected 'name' or 'id'")
-    for step in list_projectsteps(conn, project_id) or []:
+    if project_by not in ("name", "id"):
+        raise ValueError(
+            f"invalid project lookup type {project_by}; expected 'name' or 'id'"
+        )
+    query = internal.db.projects.Querier(conn)
+    if project_by == "name":
+        sqlProject = query.get_project_by_name(name=project)
+    else:
+        sqlProject = query.get_project_by_id(id=project)
+    if sqlProject is None:
+        return None
+    for step in list_projectsteps(conn, sqlProject.id) or []:
         if getattr(step, by) == lookup:
             return step
     return None
@@ -135,9 +150,10 @@ _UPDATABLE_FIELDS = {
 
 def update_projectstep(
     conn: sqlalchemy.engine.Connection,
-    project_id: str,
+    project: str,
     step_name: str,
     args: list[str],
+    project_by: str = "id",
 ) -> str:
     if not args:
         raise TypeError(
@@ -157,10 +173,12 @@ def update_projectstep(
             )
         updates[field] = _UPDATABLE_FIELDS[field](value)
 
-    existing = get_projectstep(conn, project_id, step_name, by="name")
+    existing = get_projectstep(
+        conn, project, step_name, by="name", project_by=project_by
+    )
     if existing is None:
         raise ValueError(
-            f"no project step found with name {step_name} in project {project_id}"
+            f"no project step found with name {step_name} in project {project}"
         )
 
     params = {field: getattr(existing, field) for field in _UPDATABLE_FIELDS}

@@ -6,6 +6,7 @@ import sqlalchemy
 
 import internal.areas
 import internal.projects
+import internal.projectsteps
 import internal.tools
 
 DB_URL = "sqlite:///projects.db"
@@ -22,6 +23,8 @@ def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
             result = internal.areas.create_area(conn, args)
         case "tool":
             result = internal.tools.create_tool(conn, args)
+        case "step":
+            result = internal.projectsteps.create_projectstep(conn, args)
         case _:
             return f"Invalid {table_name}: create aborted"
 
@@ -31,6 +34,13 @@ def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
 
 
 def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
+    if table_name == "step":
+        if len(args) != 4 or args[0] not in ("--project-name", "--project-id"):
+            raise TypeError(
+                "get step expects '--project-name <name>' or '--project-id <id>' "
+                "followed by '--name <name>' or '--id <id>'"
+            )
+        project_flag, project, *args = args
     if len(args) != 2 or args[0] not in ("--name", "--id"):
         raise TypeError("get expects '--name <name>' or '--id <id>'")
     flag, value = args
@@ -44,6 +54,14 @@ def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) ->
             result = internal.areas.get_area(conn, value, by=flag.removeprefix("--"))
         case "tool":
             result = internal.tools.get_tool(conn, value, by=flag.removeprefix("--"))
+        case "step":
+            result = internal.projectsteps.get_projectstep(
+                conn,
+                project,
+                value,
+                by=flag.removeprefix("--"),
+                project_by=project_flag.removeprefix("--project-"),
+            )
         case _:
             return f"Invalid {table_name}: get aborted"
     if result is None:
@@ -61,11 +79,25 @@ def get_list(
             return str(internal.areas.list_areas(conn))
         case "tool":
             return str(internal.tools.list_tools(conn))
+        case "step":
+            if len(args) != 2 or args[0] not in ("--project-name", "--project-id"):
+                raise TypeError(
+                    "list step expects '--project-name <name>' or '--project-id <id>'"
+                )
+            project_flag, project_value = args
+            project = internal.projects.get_project(
+                conn, project_value, by=project_flag.removeprefix("--project-")
+            )
+            if project is None:
+                return "project not found"
+            return str(internal.projectsteps.list_projectsteps(conn, project.id))
         case _:
             return f"Invalid {table_name}: list aborted"
 
 
 def update(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
+    if table_name in ("project", "area", "tool") and len(args) < 2:
+        raise TypeError("update expects '<name> field=value...'")
     result = None
     match table_name:
         case "project":
@@ -74,6 +106,20 @@ def update(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
             result = internal.areas.update_area(conn, args[0], args[1:])
         case "tool":
             result = internal.tools.update_tool(conn, args[0], args[1:])
+        case "step":
+            if len(args) < 4 or args[0] not in ("--project-name", "--project-id"):
+                raise TypeError(
+                    "update step expects '--project-name <name>' or "
+                    "'--project-id <id>' followed by '<step_name> field=value...'"
+                )
+            project_flag, project, step_name, *fields = args
+            result = internal.projectsteps.update_projectstep(
+                conn,
+                project,
+                step_name,
+                fields,
+                project_by=project_flag.removeprefix("--project-"),
+            )
         case _:
             return f"Invalid {table_name}: update aborted"
     return str(result)
@@ -102,6 +148,13 @@ def delete(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
                 if success
                 else f"Failed to delete {table_name} '{args[0]}'"
             )
+        case "step":
+            success = internal.projectsteps.delete_projectstep(conn, args[0])
+            return (
+                f"Deleted {table_name} '{args[0]}'"
+                if success
+                else f"Failed to delete {table_name} '{args[0]}'"
+            )
         case _:
             return f"Invalid {table_name}: delete aborted"
 
@@ -110,10 +163,14 @@ def get_commands() -> list[Command]:
     """Return the available user commands as (name, function, arg_names) tuples."""
     return [
         ("create", create, ["name", "description"]),
-        ("get", get, ["--name|--id", "value"]),
-        ("update", update, ["name", "field", "value"]),
+        ("get", get, ["[--project-name|--project-id project]", "--name|--id", "value"]),
+        (
+            "update",
+            update,
+            ["[--project-name|--project-id project]", "name", "field=value..."],
+        ),
         ("delete", delete, ["name"]),
-        ("list", get_list, ["type"]),
+        ("list", get_list, ["type", "[--project-name|--project-id project]"]),
     ]
 
 

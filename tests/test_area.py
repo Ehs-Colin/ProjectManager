@@ -48,9 +48,9 @@ class TestHomeArea(unittest.TestCase):
     def test_unique_ids(self):
         self.assertNotEqual(areas.HomeArea().id, areas.HomeArea().id)
 
-    def test_repr_includes_name_and_id(self):
+    def test_str_includes_name_and_id(self):
         a = areas.HomeArea(name="Garage")
-        r = repr(a)
+        r = str(a)
         self.assertIn("AREA: Garage", r)
         self.assertIn(a.id, r)
 
@@ -62,10 +62,15 @@ class TestCreateArea(AreasTestCase):
         self.assertIsNotNone(a)
         self.assertEqual(a.description, "Main floor")
 
-    def test_message_reports_stored_name_and_id(self):
-        msg = self._create("Kitchen")
+    def test_returns_stored_area(self):
+        created = self._create("Kitchen", "Main floor")
         a = areas.get_area(self.conn, "Kitchen")
-        self.assertEqual(msg, f"Created area 'Kitchen' with id {a.id}")
+        self.assertIsInstance(created, areas.HomeArea)
+        self.assertEqual(created.id, a.id)
+        self.assertEqual(created.name, "Kitchen")
+        self.assertEqual(created.description, "Main floor")
+        self.assertIsNotNone(created.create_at)
+        self.assertIsNotNone(created.update_at)
 
     def test_wrong_arg_count(self):
         for args in ([], ["only-name"], ["a", "b", "c"]):

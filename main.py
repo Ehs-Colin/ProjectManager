@@ -36,16 +36,18 @@ def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
 def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
     if table_name != "step" and (len(args) != 2 or args[0] not in ("--name", "--id")):
         raise TypeError("get expects '--name <name>' or '--id <id>'")
-    flag, value = args
     result = None
     match table_name:
         case "project":
+            flag, value = args
             result = internal.projects.get_project(
                 conn, value, by=flag.removeprefix("--")
             )
         case "area":
+            flag, value = args
             result = internal.areas.get_area(conn, value, by=flag.removeprefix("--"))
         case "tool":
+            flag, value = args
             result = internal.tools.get_tool(conn, value, by=flag.removeprefix("--"))
         case "step":
             if len(args) != 4 or args[0] not in ("--project-name", "--project-id"):
@@ -54,6 +56,7 @@ def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) ->
                     "followed by '--name <name>' or '--id <id>'"
                 )
             project_flag, project, *args = args
+            flag, value = args
             result = internal.projectsteps.get_projectstep(
                 conn,
                 project,
@@ -91,7 +94,7 @@ def get_list(
             )
             if steps is None:
                 return "project not found"
-            return str(steps)
+            return "".join(str(step) for step in steps)
         case _:
             return f"Invalid {table_name}: list aborted"
 
@@ -176,7 +179,7 @@ def get_commands() -> list[Command]:
 
 
 def main():
-    print("Welcom to Project Manager!")
+    # print("Welcom to Project Manager!")
 
     if len(sys.argv) < 2:
         print("Usage: python3 main.py <command>")

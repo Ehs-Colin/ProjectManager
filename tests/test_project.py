@@ -76,10 +76,15 @@ class TestCreateProject(ProjectsTestCase):
         self.assertTrue(p.active)
         self.assertFalse(p.complete)
 
-    def test_message_reports_stored_name_and_id(self):
-        msg = self._create("Kitchen", "Remodel")
+    def test_returns_stored_project(self):
+        created = self._create("Kitchen", "Remodel")
         p = projects.get_project(self.conn, "Kitchen")
-        self.assertEqual(msg, f"Created project 'Kitchen' with id {p.id}")
+        self.assertIsInstance(created, projects.HomeProject)
+        self.assertEqual(created.id, p.id)
+        self.assertEqual(created.name, "Kitchen")
+        self.assertEqual(created.description, "Remodel")
+        self.assertIsNotNone(created.create_at)
+        self.assertIsNotNone(created.update_at)
 
     def test_wrong_arg_count(self):
         for args in ([], ["only-name"], ["a", "b", "c"]):

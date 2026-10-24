@@ -27,7 +27,7 @@ class HomeArea(internal.db.models.Area):
         self.create_at = sqlArea.create_at
         self.update_at = sqlArea.update_at
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return f"""
 === AREA: {self.name} - ({self.id}) ===
  * description:        {self.description}
@@ -36,7 +36,7 @@ class HomeArea(internal.db.models.Area):
 """
 
 
-def create_area(conn: sqlalchemy.engine.Connection, args: list[str]) -> str:
+def create_area(conn: sqlalchemy.engine.Connection, args: list[str]) -> HomeArea | str:
     if len(args) != 2:
         raise TypeError(
             f"create area expects 2 arguments (name, description), got {len(args)}"
@@ -44,8 +44,13 @@ def create_area(conn: sqlalchemy.engine.Connection, args: list[str]) -> str:
     name, description = args
     area = HomeArea(name=name, description=description)
     query = internal.db.areas.Querier(conn)
-    query.create_area(id=area.id, name=area.name, description=area.description)
-    return f"Created area '{area.name}' with id {area.id}"
+    sqlArea = query.create_area(
+        id=area.id, name=area.name, description=area.description
+    )
+    if sqlArea is None:
+        return f"Failed to create area '{area.name}'"
+    area.ConvertFromSql(sqlArea)
+    return area
 
 
 def delete_area(conn: sqlalchemy.engine.Connection, area_id: str) -> bool:

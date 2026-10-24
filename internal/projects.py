@@ -32,15 +32,6 @@ class HomeProject(internal.db.models.Project):
             create_at=datetime.now(),
             update_at=datetime.now(),
         )
-        # self.name = name
-        # self.description = description
-        # self.id = new_id
-        # self.budget = budget
-        # self.completion_percent = completion_percent
-        # self.active = active
-        # self.complete = complete
-        # self.create_at = datetime.now()
-        # self.update_at = datetime.now()
 
     def ConvertFromSql(self, sqlProject: internal.db.models.Project) -> None:
         self.id = sqlProject.id
@@ -53,7 +44,7 @@ class HomeProject(internal.db.models.Project):
         self.create_at = sqlProject.create_at
         self.update_at = sqlProject.update_at
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return f"""
 === PROJECT: {self.name} - ({self.id}) ===
  * description:        {self.description}
@@ -66,7 +57,9 @@ class HomeProject(internal.db.models.Project):
 """
 
 
-def create_project(conn: sqlalchemy.engine.Connection, args: list[str]) -> str:
+def create_project(
+    conn: sqlalchemy.engine.Connection, args: list[str]
+) -> HomeProject | str:
     if len(args) != 2:
         raise TypeError(
             f"create project expects 2 arguments (name, description), got {len(args)}"
@@ -74,7 +67,7 @@ def create_project(conn: sqlalchemy.engine.Connection, args: list[str]) -> str:
     name, description = args
     project = HomeProject(name=name, description=description)
     query = internal.db.projects.Querier(conn)
-    query.create_project(
+    sqlProject = query.create_project(
         internal.db.projects.CreateProjectParams(
             name=project.name,
             description=project.description,
@@ -85,7 +78,10 @@ def create_project(conn: sqlalchemy.engine.Connection, args: list[str]) -> str:
             complete=project.complete,
         )
     )
-    return f"Created project '{project.name}' with id {project.id}"
+    if sqlProject is None:
+        return f"failed to create project {name}"
+    project.ConvertFromSql(sqlProject)
+    return project
 
 
 def delete_project(conn: sqlalchemy.engine.Connection, project_id: str) -> bool:

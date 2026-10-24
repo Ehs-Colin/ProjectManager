@@ -27,7 +27,7 @@ class HomeTool(internal.db.models.Tool):
         self.create_at = sqlTool.create_at
         self.update_at = sqlTool.update_at
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return f"""
 === TOOL: {self.name} - ({self.id}) ===
  * description:        {self.description}
@@ -36,7 +36,7 @@ class HomeTool(internal.db.models.Tool):
 """
 
 
-def create_tool(conn: sqlalchemy.engine.Connection, args: list[str]) -> str:
+def create_tool(conn: sqlalchemy.engine.Connection, args: list[str]) -> HomeTool | str:
     if len(args) != 2:
         raise TypeError(
             f"create tool expects 2 arguments (name, description), got {len(args)}"
@@ -44,8 +44,15 @@ def create_tool(conn: sqlalchemy.engine.Connection, args: list[str]) -> str:
     name, description = args
     tool = HomeTool(name=name, description=description)
     query = internal.db.tools.Querier(conn)
-    query.create_tool(id=tool.id, name=tool.name, description=tool.description)
-    return f"Created tool '{tool.name}' with id {tool.id}"
+    sqlTool = query.create_tool(
+        id=tool.id,
+        name=tool.name,
+        description=tool.description,
+    )
+    if sqlTool is None:
+        return f"Failed to create tool '{tool.name}'"
+    tool.ConvertFromSql(sqlTool)
+    return tool
 
 
 def delete_tool(conn: sqlalchemy.engine.Connection, tool_id: str) -> bool:

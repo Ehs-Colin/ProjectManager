@@ -76,19 +76,22 @@ class TestHomeProjectStep(unittest.TestCase):
         self.assertEqual(dst.name, "Paint")
         self.assertEqual(dst.create_at, src.create_at)
 
-    def test_repr_includes_name_and_id(self):
+    def test_str_includes_name_and_id(self):
         s = projectsteps.HomeProjectStep(name="Paint")
-        r = repr(s)
+        r = str(s)
         self.assertIn("PROJECT STEP: Paint", r)
         self.assertIn(s.id, r)
 
 
 class TestCreateProjectStep(ProjectStepsTestCase):
     def test_creates_row(self):
-        msg = self._create("Demo", "Tear out cabinets")
-        self.assertIn("Created project step 'Demo'", msg)
+        created = self._create("Demo", "Tear out cabinets")
+        self.assertIsInstance(created, projectsteps.HomeProjectStep)
+        self.assertEqual(created.name, "Demo")
+        self.assertEqual(created.project_id, self.project_id)
         step = self._get("Demo")
         self.assertIsNotNone(step)
+        self.assertEqual(created.id, step.id)
         self.assertEqual(step.project_id, self.project_id)
         self.assertEqual(step.description, "Tear out cabinets")
 

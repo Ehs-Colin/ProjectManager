@@ -48,9 +48,9 @@ class TestHomeTool(unittest.TestCase):
     def test_unique_ids(self):
         self.assertNotEqual(tools.HomeTool().id, tools.HomeTool().id)
 
-    def test_repr_includes_name_and_id(self):
+    def test_str_includes_name_and_id(self):
         t = tools.HomeTool(name="Drill")
-        r = repr(t)
+        r = str(t)
         self.assertIn("TOOL: Drill", r)
         self.assertIn(t.id, r)
 
@@ -62,10 +62,15 @@ class TestCreateTool(ToolsTestCase):
         self.assertIsNotNone(t)
         self.assertEqual(t.description, "Claw")
 
-    def test_message_reports_stored_name_and_id(self):
-        msg = self._create("Hammer")
+    def test_returns_stored_tool(self):
+        created = self._create("Hammer", "Claw")
         t = tools.get_tool(self.conn, "Hammer")
-        self.assertEqual(msg, f"Created tool 'Hammer' with id {t.id}")
+        self.assertIsInstance(created, tools.HomeTool)
+        self.assertEqual(created.id, t.id)
+        self.assertEqual(created.name, "Hammer")
+        self.assertEqual(created.description, "Claw")
+        self.assertIsNotNone(created.create_at)
+        self.assertIsNotNone(created.update_at)
 
     def test_wrong_arg_count(self):
         for args in ([], ["only-name"], ["a", "b", "c"]):

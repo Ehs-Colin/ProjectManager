@@ -48,7 +48,7 @@ class HomeProjectStep(internal.db.models.Projectstep):
         self.create_at = sqlStep.create_at
         self.update_at = sqlStep.update_at
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return f"""
 === PROJECT STEP: {self.name} - ({self.id}) ===
  * project_id:         {self.project_id}
@@ -68,7 +68,9 @@ def _verify_project(conn: sqlalchemy.engine.Connection, project_id: str) -> None
         raise ValueError(f"no project found with id {project_id}")
 
 
-def create_projectstep(conn: sqlalchemy.engine.Connection, args: list[str]) -> str:
+def create_projectstep(
+    conn: sqlalchemy.engine.Connection, args: list[str]
+) -> HomeProjectStep | str:
     if len(args) != 3:
         raise TypeError(
             "create projectstep expects 3 arguments "
@@ -78,7 +80,7 @@ def create_projectstep(conn: sqlalchemy.engine.Connection, args: list[str]) -> s
     _verify_project(conn, project_id)
     step = HomeProjectStep(project_id=project_id, name=name, description=description)
     query = internal.db.project_steps.Querier(conn)
-    query.create_project_step(
+    sqlStep = query.create_project_step(
         internal.db.project_steps.CreateProjectStepParams(
             id=step.id,
             project_id=step.project_id,
@@ -90,7 +92,10 @@ def create_projectstep(conn: sqlalchemy.engine.Connection, args: list[str]) -> s
             projectvalue=step.projectvalue,
         )
     )
-    return f"Created project step '{step.name}' with id {step.id}"
+    if sqlStep is None:
+        return f"Failed to create project step '{step.name}'"
+    step.ConvertFromSql(sqlStep)
+    return step
 
 
 def delete_projectstep(conn: sqlalchemy.engine.Connection, step_id: str) -> bool:

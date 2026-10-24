@@ -30,7 +30,7 @@ def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
 
     if result is None:
         return f"Invalid {table_name}: create aborted"
-    return f"Created '{table_name}'\n{result}"
+    return f"Created '{table_name}' {result}"
 
 
 def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:

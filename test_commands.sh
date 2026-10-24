@@ -3,8 +3,8 @@
 set -u
 PM="python3 main.py"
 
-# Pull the UUID out of "Created <type> '<name>' with id <uuid>"
-get_id() { sed -n 's/.* with id \([0-9a-f-]\{36\}\).*/\1/p'; }
+# Pull the UUID out of the header line "=== <TYPE>: <name> - (<uuid>) ==="
+get_id() { sed -n 's/^===.*(\([0-9a-f-]\{36\}\)) ===.*/\1/p' | head -n 1; }
 
 create() {  # usage: create <type> args...  -> echoes id
   local out; out=$($PM create "$@")

@@ -5,6 +5,7 @@ from collections.abc import Callable
 import sqlalchemy
 
 import internal.areas
+import internal.project_areas
 import internal.projects
 import internal.projectsteps
 import internal.tools
@@ -25,6 +26,8 @@ def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
             result = internal.tools.create_tool(conn, args)
         case "step":
             result = internal.projectsteps.create_projectstep(conn, args)
+        case "projectarea":
+            result = internal.project_areas.create_project_area(conn, args)
         case _:
             return f"Invalid {table_name}: create aborted"
 
@@ -34,7 +37,9 @@ def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
 
 
 def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
-    if table_name != "step" and (len(args) != 2 or args[0] not in ("--name", "--id")):
+    if table_name not in ("step", "projectarea") and (
+        len(args) != 2 or args[0] not in ("--name", "--id")
+    ):
         raise TypeError("get expects '--name <name>' or '--id <id>'")
     result = None
     match table_name:
@@ -64,6 +69,11 @@ def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) ->
                 by=flag.removeprefix("--"),
                 project_by=project_flag.removeprefix("--project-"),
             )
+        case "projectarea":
+            if len(args) != 2:
+                raise TypeError("get projectarea expects '<project> <area>'")
+            project, area = args
+            result = internal.project_areas.get_project_area(conn, project, area)
         case _:
             return f"Invalid {table_name}: get aborted"
     if result is None:
@@ -95,6 +105,11 @@ def get_list(
             if steps is None:
                 return "project not found"
             return "".join(str(step) for step in steps)
+        case "projectarea":
+            if len(args) != 1:
+                raise TypeError("list projectarea expects '<project|area>'")
+            project_areas = internal.project_areas.list_project_areas(conn, args[0])
+            return "".join(str(pa) for pa in project_areas)
         case _:
             return f"Invalid {table_name}: list aborted"
 
@@ -123,6 +138,15 @@ def update(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
                 step_name,
                 fields,
                 project_by=project_flag.removeprefix("--project-"),
+            )
+        case "projectarea":
+            if len(args) < 3:
+                raise TypeError(
+                    "update projectarea expects '<project> <area> field=value...'"
+                )
+            project, area, *fields = args
+            result = internal.project_areas.update_project_area(
+                conn, project, area, fields
             )
         case _:
             return f"Invalid {table_name}: update aborted"
@@ -159,6 +183,16 @@ def delete(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
                 if success
                 else f"Failed to delete {table_name} '{args[0]}'"
             )
+        case "projectarea":
+            if len(args) != 2:
+                raise TypeError("delete projectarea expects '<project> <area>'")
+            project, area = args
+            success = internal.project_areas.delete_project_area(conn, project, area)
+            return (
+                f"Deleted {table_name} '{project}' / '{area}'"
+                if success
+                else f"Failed to delete {table_name} '{project}' / '{area}'"
+            )
         case _:
             return f"Invalid {table_name}: delete aborted"
 
@@ -179,8 +213,6 @@ def get_commands() -> list[Command]:
 
 
 def main():
-    # print("Welcom to Project Manager!")
-
     if len(sys.argv) < 2:
         print("Usage: python3 main.py <command>")
         sys.exit(1)
@@ -200,6 +232,9 @@ def main():
             print(func(conn, table_name, rest))
     except TypeError as e:
         print(f"Error: Bad arguments for {command_name}: {e}")
+        sys.exit(1)
+    except ValueError as e:
+        print(f"Error: {command_name} failed: {e}")
         sys.exit(1)
     finally:
         engine.dispose()

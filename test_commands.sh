@@ -30,6 +30,12 @@ A1=$(create area "Indoor"   "Inside the house")
 A2=$(create area "Outdoor"  "Yard and exterior")
 A3=$(create area "Workshop" "Garage workshop space")
 
+echo "===== CREATE PROJECT AREAS ====="
+$PM create projectarea "$P1" "$A1" "Kitchen is indoors"
+$PM create projectarea "$P2" "$A2" "Beds go in the back yard"
+$PM create projectarea "$P3" "$A3" "Workshop corner of the garage"
+$PM create projectarea "$P3" "$A1" "Storage shelves inside"
+
 echo "===== CREATE TOOLS ====="
 T1=$(create tool "Drill"    "Cordless drill")
 T2=$(create tool "Saw"      "Circular saw")
@@ -39,6 +45,18 @@ echo "===== GET PROJECTS BY NAME ====="
 $PM get project --name "Kitchen"
 $PM get project --name "Garden"
 $PM get project --name "Garage"
+
+echo "===== GET PROJECT AREAS BY PROJECT (name and id) ====="
+$PM list projectarea "Kitchen"
+$PM list projectarea "$P2"
+$PM list projectarea "Garage"
+$PM get projectarea "Kitchen" "Indoor"
+$PM get projectarea "$P3" "$A3"
+
+echo "===== GET PROJECT AREAS BY AREA ====="
+$PM list projectarea "Indoor"
+$PM list projectarea "$A2"
+$PM list projectarea "Workshop"
 
 echo "===== GET EACH PROJECT STEP ====="
 $PM get step --project-name "Kitchen" --name "Demo"
@@ -53,7 +71,11 @@ $PM list step --project-name "Kitchen"
 $PM list step --project-name "Garden"
 $PM list step --project-name "Garage"
 
-echo "===== DELETE (steps first, then projects) ====="
+echo "===== DELETE (project areas and steps first, then projects) ====="
+$PM delete projectarea "$P1" "$A1"
+$PM delete projectarea "$P2" "$A2"
+$PM delete projectarea "$P3" "$A3"
+$PM delete projectarea "$P3" "$A1"
 for id in "$S1" "$S2" "$S3" "$S4" "$S5" "$S6"; do $PM delete step "$id"; done
 for id in "$P1" "$P2" "$P3"; do $PM delete project "$id"; done
 for id in "$A1" "$A2" "$A3"; do $PM delete area "$id"; done

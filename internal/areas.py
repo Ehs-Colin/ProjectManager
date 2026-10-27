@@ -59,21 +59,11 @@ def delete_area(conn: sqlalchemy.engine.Connection, area_id: str) -> bool:
     return True
 
 
-def get_area(
-    conn: sqlalchemy.engine.Connection, lookup: str, by: str = "name"
-) -> HomeArea | None:
-    query = internal.db.areas.Querier(conn)
-    if by == "name":
-        sqlArea = query.get_area_by_name(name=lookup)
-    elif by == "id":
-        sqlArea = query.get_area_by_id(id=lookup)
-    else:
-        raise ValueError(f"invalid lookup type {by}; expected 'name' or 'id'")
-    if sqlArea is None:
+def get_area(conn: sqlalchemy.engine.Connection, lookup: str) -> HomeArea | None:
+    try:
+        return find_area(conn, lookup)
+    except ValueError:
         return None
-    area = HomeArea()
-    area.ConvertFromSql(sqlArea)
-    return area
 
 
 def list_areas(conn: sqlalchemy.engine.Connection) -> list[HomeArea] | None:
@@ -92,9 +82,7 @@ _UPDATABLE_FIELDS = {
 }
 
 
-def update_area(
-    conn: sqlalchemy.engine.Connection, area_name: str, args: list[str]
-) -> str:
+def update_area(conn: sqlalchemy.engine.Connection, area: str, args: list[str]) -> str:
     if not args:
         raise TypeError(
             f"update area expects at least 1 field=value argument "
@@ -113,13 +101,28 @@ def update_area(
             )
         updates[field] = _UPDATABLE_FIELDS[field](value)
 
-    query = internal.db.areas.Querier(conn)
-    existing = query.get_area_by_name(name=area_name)
-    if existing is None:
-        raise ValueError(f"no area found with name {area_name}")
+    existing = find_area(conn, area)
 
     params = {field: getattr(existing, field) for field in _UPDATABLE_FIELDS}
     params.update(updates)
 
+    query = internal.db.areas.Querier(conn)
     query.update_area(id=existing.id, **params)
-    return f"Updated area with name {area_name} ({', '.join(updates)})"
+    return f"Updated area with name {existing.name} ({', '.join(updates)})"
+
+
+def find_area(conn: sqlalchemy.engine.Connection, area: str) -> HomeArea:
+    query = internal.db.areas.Querier(conn)
+    found = query.get_area_by_id(id=area)
+    if found is None:
+        found = query.get_area_by_name(name=area)
+    if found is None:
+        raise ValueError(f"no area found with id or name {area!r}")
+    home_area = HomeArea()
+    home_area.ConvertFromSql(found)
+    return home_area
+
+
+def get_area_id(conn: sqlalchemy.engine.Connection, area: str) -> str:
+    found = find_area(conn, area)
+    return found.id

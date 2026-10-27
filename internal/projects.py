@@ -90,21 +90,11 @@ def delete_project(conn: sqlalchemy.engine.Connection, project_id: str) -> bool:
     return True
 
 
-def get_project(
-    conn: sqlalchemy.engine.Connection, lookup: str, by: str = "name"
-) -> HomeProject | None:
-    query = internal.db.projects.Querier(conn)
-    if by == "name":
-        sqlProject = query.get_project_by_name(name=lookup)
-    elif by == "id":
-        sqlProject = query.get_project_by_id(id=lookup)
-    else:
-        raise ValueError(f"invalid lookup type {by}; expected 'name' or 'id'")
-    if sqlProject is None:
+def get_project(conn: sqlalchemy.engine.Connection, lookup: str) -> HomeProject | None:
+    try:
+        return find_project(conn, lookup)
+    except ValueError:
         return None
-    project = HomeProject()
-    project.ConvertFromSql(sqlProject)
-    return project
 
 
 def list_projects(conn: sqlalchemy.engine.Connection) -> list[HomeProject] | None:
@@ -137,7 +127,7 @@ def _parse_bool(value: str) -> bool:
 
 
 def update_project(
-    conn: sqlalchemy.engine.Connection, project_name: str, args: list[str]
+    conn: sqlalchemy.engine.Connection, project: str, args: list[str]
 ) -> str:
     if not args:
         raise TypeError(
@@ -157,15 +147,30 @@ def update_project(
             )
         updates[field] = _UPDATABLE_FIELDS[field](value)
 
-    query = internal.db.projects.Querier(conn)
-    existing = query.get_project_by_name(name=project_name)
-    if existing is None:
-        raise ValueError(f"no project found with name {project_name}")
+    existing = find_project(conn, project)
 
     params = {field: getattr(existing, field) for field in _UPDATABLE_FIELDS}
     params.update(updates)
 
+    query = internal.db.projects.Querier(conn)
     query.update_project(
         internal.db.projects.UpdateProjectParams(id=existing.id, **params),
     )
-    return f"Updated project with name {project_name} ({', '.join(updates)})"
+    return f"Updated project with name {existing.name} ({', '.join(updates)})"
+
+
+def find_project(conn: sqlalchemy.engine.Connection, project: str) -> HomeProject:
+    query = internal.db.projects.Querier(conn)
+    found = query.get_project_by_id(id=project)
+    if found is None:
+        found = query.get_project_by_name(name=project)
+    if found is None:
+        raise ValueError(f"no project found with id or name {project!r}")
+    home_project = HomeProject()
+    home_project.ConvertFromSql(found)
+    return home_project
+
+
+def get_project_id(conn: sqlalchemy.engine.Connection, project: str) -> str:
+    found = find_project(conn, project)
+    return found.id

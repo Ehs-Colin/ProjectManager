@@ -6,6 +6,7 @@ import sqlalchemy
 
 import internal.areas
 import internal.project_areas
+import internal.project_step_tools
 import internal.projects
 import internal.projectsteps
 import internal.tools
@@ -28,6 +29,8 @@ def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
             result = internal.projectsteps.create_projectstep(conn, args)
         case "projectarea":
             result = internal.project_areas.create_project_area(conn, args)
+        case "steptool":
+            result = internal.project_step_tools.create_project_step_tool(conn, args)
         case _:
             return f"Invalid {table_name}: create aborted"
 
@@ -37,43 +40,33 @@ def create(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
 
 
 def get(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]) -> str:
-    if table_name not in ("step", "projectarea") and (
-        len(args) != 2 or args[0] not in ("--name", "--id")
-    ):
-        raise TypeError("get expects '--name <name>' or '--id <id>'")
+    if table_name in ("project", "area", "tool") and len(args) != 1:
+        raise TypeError("get expects '<name|id>'")
     result = None
     match table_name:
         case "project":
-            flag, value = args
-            result = internal.projects.get_project(
-                conn, value, by=flag.removeprefix("--")
-            )
+            result = internal.projects.get_project(conn, args[0])
         case "area":
-            flag, value = args
-            result = internal.areas.get_area(conn, value, by=flag.removeprefix("--"))
+            result = internal.areas.get_area(conn, args[0])
         case "tool":
-            flag, value = args
-            result = internal.tools.get_tool(conn, value, by=flag.removeprefix("--"))
+            result = internal.tools.get_tool(conn, args[0])
         case "step":
-            if len(args) != 4 or args[0] not in ("--project-name", "--project-id"):
-                raise TypeError(
-                    "get step expects '--project-name <name>' or '--project-id <id>' "
-                    "followed by '--name <name>' or '--id <id>'"
-                )
-            project_flag, project, *args = args
-            flag, value = args
-            result = internal.projectsteps.get_projectstep(
-                conn,
-                project,
-                value,
-                by=flag.removeprefix("--"),
-                project_by=project_flag.removeprefix("--project-"),
-            )
+            if len(args) != 2:
+                raise TypeError("get step expects '<project> <step>'")
+            project, step = args
+            result = internal.projectsteps.get_projectstep(conn, project, step)
         case "projectarea":
             if len(args) != 2:
                 raise TypeError("get projectarea expects '<project> <area>'")
             project, area = args
             result = internal.project_areas.get_project_area(conn, project, area)
+        case "steptool":
+            if len(args) != 3:
+                raise TypeError("get steptool expects '<project> <step> <tool>'")
+            project, step, tool = args
+            result = internal.project_step_tools.get_project_step_tool(
+                conn, project, step, tool
+            )
         case _:
             return f"Invalid {table_name}: get aborted"
     if result is None:
@@ -92,16 +85,9 @@ def get_list(
         case "tool":
             return str(internal.tools.list_tools(conn))
         case "step":
-            if len(args) != 2 or args[0] not in ("--project-name", "--project-id"):
-                raise TypeError(
-                    "list step expects '--project-name <name>' or '--project-id <id>'"
-                )
-            project_flag, project_value = args
-            steps = internal.projectsteps.list_projectsteps(
-                conn,
-                project_value,
-                project_by=project_flag.removeprefix("--project-"),
-            )
+            if len(args) != 1:
+                raise TypeError("list step expects '<project>'")
+            steps = internal.projectsteps.list_projectsteps(conn, args[0])
             if steps is None:
                 return "project not found"
             return "".join(str(step) for step in steps)
@@ -110,6 +96,13 @@ def get_list(
                 raise TypeError("list projectarea expects '<project|area>'")
             project_areas = internal.project_areas.list_project_areas(conn, args[0])
             return "".join(str(pa) for pa in project_areas)
+        case "steptool":
+            if len(args) not in (1, 2):
+                raise TypeError("list steptool expects '<project> [step]'")
+            step_tools = internal.project_step_tools.list_project_step_tools(
+                conn, *args
+            )
+            return "".join(str(pst) for pst in step_tools)
         case _:
             return f"Invalid {table_name}: list aborted"
 
@@ -126,18 +119,11 @@ def update(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
         case "tool":
             result = internal.tools.update_tool(conn, args[0], args[1:])
         case "step":
-            if len(args) < 4 or args[0] not in ("--project-name", "--project-id"):
-                raise TypeError(
-                    "update step expects '--project-name <name>' or "
-                    "'--project-id <id>' followed by '<step_name> field=value...'"
-                )
-            project_flag, project, step_name, *fields = args
+            if len(args) < 3:
+                raise TypeError("update step expects '<project> <step> field=value...'")
+            project, step, *fields = args
             result = internal.projectsteps.update_projectstep(
-                conn,
-                project,
-                step_name,
-                fields,
-                project_by=project_flag.removeprefix("--project-"),
+                conn, project, step, fields
             )
         case "projectarea":
             if len(args) < 3:
@@ -193,6 +179,18 @@ def delete(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
                 if success
                 else f"Failed to delete {table_name} '{project}' / '{area}'"
             )
+        case "steptool":
+            if len(args) != 3:
+                raise TypeError("delete steptool expects '<project> <step> <tool>'")
+            project, step, tool = args
+            success = internal.project_step_tools.delete_project_step_tool(
+                conn, project, step, tool
+            )
+            return (
+                f"Deleted {table_name} '{project}' / '{step}' / '{tool}'"
+                if success
+                else f"Failed to delete {table_name} '{project}' / '{step}' / '{tool}'"
+            )
         case _:
             return f"Invalid {table_name}: delete aborted"
 
@@ -201,14 +199,10 @@ def get_commands() -> list[Command]:
     """Return the available user commands as (name, function, arg_names) tuples."""
     return [
         ("create", create, ["name", "description"]),
-        ("get", get, ["[--project-name|--project-id project]", "--name|--id", "value"]),
-        (
-            "update",
-            update,
-            ["[--project-name|--project-id project]", "name", "field=value..."],
-        ),
+        ("get", get, ["[project]", "name|id"]),
+        ("update", update, ["[project]", "name|id", "field=value..."]),
         ("delete", delete, ["name"]),
-        ("list", get_list, ["type", "[--project-name|--project-id project]"]),
+        ("list", get_list, ["type", "[project]"]),
     ]
 
 

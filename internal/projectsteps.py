@@ -7,6 +7,7 @@ import sqlalchemy
 import internal.db.models
 import internal.db.project_steps
 import internal.db.projects
+import internal.projects
 
 
 class HomeProjectStep(internal.db.models.Projectstep):
@@ -107,18 +108,10 @@ def delete_projectstep(conn: sqlalchemy.engine.Connection, step_id: str) -> bool
 def list_projectsteps(
     conn: sqlalchemy.engine.Connection,
     project: str,
-    project_by: str = "id",
 ) -> list[HomeProjectStep] | None:
-    if project_by not in ("name", "id"):
-        raise ValueError(
-            f"invalid project lookup type {project_by}; expected 'name' or 'id'"
-        )
-    project_query = internal.db.projects.Querier(conn)
-    if project_by == "name":
-        sqlProject = project_query.get_project_by_name(name=project)
-    else:
-        sqlProject = project_query.get_project_by_id(id=project)
-    if sqlProject is None:
+    try:
+        sqlProject = internal.projects.find_project(conn, project)
+    except ValueError:
         return None
     query = internal.db.project_steps.Querier(conn)
     steps: list[HomeProjectStep] = []
@@ -133,26 +126,20 @@ def get_projectstep(
     conn: sqlalchemy.engine.Connection,
     project: str,
     lookup: str,
-    by: str = "name",
-    project_by: str = "id",
 ) -> HomeProjectStep | None:
-    if by not in ("name", "id"):
-        raise ValueError(f"invalid lookup type {by}; expected 'name' or 'id'")
-    if project_by not in ("name", "id"):
-        raise ValueError(
-            f"invalid project lookup type {project_by}; expected 'name' or 'id'"
-        )
-    query = internal.db.projects.Querier(conn)
-    if project_by == "name":
-        sqlProject = query.get_project_by_name(name=project)
-    else:
-        sqlProject = query.get_project_by_id(id=project)
-    if sqlProject is None:
+    try:
+        found = internal.projects.find_project(conn, project)
+    except ValueError:
         return None
-    for step in list_projectsteps(conn, sqlProject.id) or []:
-        if getattr(step, by) == lookup:
-            return step
-    return None
+    query = internal.db.project_steps.Querier(conn)
+    sqlStep = query.get_project_step_by_id(id=lookup)
+    if sqlStep is None or sqlStep.project_id != found.id:
+        sqlStep = query.get_project_step_by_name(project_id=found.id, name=lookup)
+    if sqlStep is None:
+        return None
+    step = HomeProjectStep()
+    step.ConvertFromSql(sqlStep)
+    return step
 
 
 # project_id is intentionally excluded: steps cannot be moved between projects.
@@ -169,9 +156,8 @@ _UPDATABLE_FIELDS = {
 def update_projectstep(
     conn: sqlalchemy.engine.Connection,
     project: str,
-    step_name: str,
+    step: str,
     args: list[str],
-    project_by: str = "id",
 ) -> str:
     if not args:
         raise TypeError(
@@ -191,12 +177,10 @@ def update_projectstep(
             )
         updates[field] = _UPDATABLE_FIELDS[field](value)
 
-    existing = get_projectstep(
-        conn, project, step_name, by="name", project_by=project_by
-    )
+    existing = get_projectstep(conn, project, step)
     if existing is None:
         raise ValueError(
-            f"no project step found with name {step_name} in project {project}"
+            f"no project step found with id or name {step!r} in project {project!r}"
         )
 
     params = {field: getattr(existing, field) for field in _UPDATABLE_FIELDS}
@@ -206,4 +190,4 @@ def update_projectstep(
     query.update_project_step(
         internal.db.project_steps.UpdateProjectStepParams(id=existing.id, **params),
     )
-    return f"Updated project step with name {step_name} ({', '.join(updates)})"
+    return f"Updated project step with name {existing.name} ({', '.join(updates)})"

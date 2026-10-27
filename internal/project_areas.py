@@ -1,10 +1,10 @@
 # Project areas module for project manager
 import sqlalchemy
 
-import internal.db.areas
+import internal.areas
 import internal.db.models
 import internal.db.project_areas
-import internal.db.projects
+import internal.projects
 
 
 class HomeProjectArea(internal.db.models.Projectarea):
@@ -21,40 +21,6 @@ class HomeProjectArea(internal.db.models.Projectarea):
 === PROJECT AREA: project {self.project_id} / area {self.area_id} ===
  * notes:              {self.notes}
 """
-
-
-def _find_project(
-    conn: sqlalchemy.engine.Connection, project: str
-) -> internal.db.models.Project | None:
-    query = internal.db.projects.Querier(conn)
-    found = query.get_project_by_id(id=project)
-    if found is None:
-        found = query.get_project_by_name(name=project)
-    return found
-
-
-def _find_area(
-    conn: sqlalchemy.engine.Connection, area: str
-) -> internal.db.models.Area | None:
-    query = internal.db.areas.Querier(conn)
-    found = query.get_area_by_id(id=area)
-    if found is None:
-        found = query.get_area_by_name(name=area)
-    return found
-
-
-def _resolve_project_id(conn: sqlalchemy.engine.Connection, project: str) -> str:
-    found = _find_project(conn, project)
-    if found is None:
-        raise ValueError(f"no project found with id or name {project!r}")
-    return found.id
-
-
-def _resolve_area_id(conn: sqlalchemy.engine.Connection, area: str) -> str:
-    found = _find_area(conn, area)
-    if found is None:
-        raise ValueError(f"no area found with id or name {area!r}")
-    return found.id
 
 
 def _get_existing(
@@ -76,8 +42,8 @@ def create_project_area(
         )
     project, area = args[0], args[1]
     notes = args[2] if len(args) == 3 else ""
-    project_id = _resolve_project_id(conn, project)
-    area_id = _resolve_area_id(conn, area)
+    project_id = internal.projects.get_project_id(conn, project)
+    area_id = internal.areas.get_area_id(conn, area)
 
     query = internal.db.project_areas.Querier(conn)
     if _get_existing(query, project_id, area_id) is not None:
@@ -95,8 +61,8 @@ def create_project_area(
 def delete_project_area(
     conn: sqlalchemy.engine.Connection, project: str, area: str
 ) -> bool:
-    project_id = _resolve_project_id(conn, project)
-    area_id = _resolve_area_id(conn, area)
+    project_id = internal.projects.get_project_id(conn, project)
+    area_id = internal.areas.get_area_id(conn, area)
     query = internal.db.project_areas.Querier(conn)
     query.delete_project_area(project_id=project_id, area_id=area_id)
     return True
@@ -105,8 +71,8 @@ def delete_project_area(
 def get_project_area(
     conn: sqlalchemy.engine.Connection, project: str, area: str
 ) -> HomeProjectArea | None:
-    project_id = _resolve_project_id(conn, project)
-    area_id = _resolve_area_id(conn, area)
+    project_id = internal.projects.get_project_id(conn, project)
+    area_id = internal.areas.get_area_id(conn, area)
     query = internal.db.project_areas.Querier(conn)
     sqlProjectArea = _get_existing(query, project_id, area_id)
     if sqlProjectArea is None:
@@ -121,14 +87,20 @@ def list_project_areas(
 ) -> list[HomeProjectArea]:
     """List links for a project or an area, identified by id or name."""
     query = internal.db.project_areas.Querier(conn)
-    project = _find_project(conn, lookup)
-    area = _find_area(conn, lookup)
-    if project is not None and area is not None:
+    try:
+        project_id = internal.projects.get_project_id(conn, lookup)
+    except ValueError:
+        project_id = None
+    try:
+        area_id = internal.areas.get_area_id(conn, lookup)
+    except ValueError:
+        area_id = None
+    if project_id is not None and area_id is not None:
         raise ValueError(f"{lookup!r} matches both a project and an area")
-    if project is not None:
-        rows = query.get_project_areas(project_id=project.id)
-    elif area is not None:
-        rows = query.get_area_projects(area_id=area.id)
+    if project_id is not None:
+        rows = query.get_project_areas(project_id=project_id)
+    elif area_id is not None:
+        rows = query.get_area_projects(area_id=area_id)
     else:
         raise ValueError(f"no project or area found with id or name {lookup!r}")
 
@@ -166,12 +138,13 @@ def update_project_area(
             )
         updates[field] = _UPDATABLE_FIELDS[field](value)
 
-    project_id = _resolve_project_id(conn, project)
-    area_id = _resolve_area_id(conn, area)
+    project_id = internal.projects.get_project_id(conn, project)
+    area_id = internal.areas.get_area_id(conn, area)
     query = internal.db.project_areas.Querier(conn)
     if _get_existing(query, project_id, area_id) is None:
         raise ValueError(f"project {project!r} is not linked to area {area!r}")
-
+    if "notes" not in updates:
+        raise ValueError("notes field is required")
     query.update_project_area(
         project_id=project_id, area_id=area_id, notes=updates["notes"]
     )

@@ -103,6 +103,10 @@ class TestGetProjectArea(ProjectAreasTestCase):
             project_areas.get_project_area(self.conn, "Remodel", "Garage")
         )
 
+    def test_get_unknown_area(self):
+        with self.assertRaises(ValueError):
+            project_areas.get_project_area(self.conn, "Remodel", "Nope")
+
     def test_get_unknown_project(self):
         with self.assertRaises(ValueError):
             project_areas.get_project_area(self.conn, "Nope", "Kitchen")
@@ -121,6 +125,18 @@ class TestListProjectAreas(ProjectAreasTestCase):
         result = project_areas.list_project_areas(self.conn, "Kitchen")
         self.assertEqual(len(result), 2)
         self.assertTrue(all(pa.area_id == self.area_id for pa in result))
+
+    def test_list_by_project_id(self):
+        self._create("Remodel", "Kitchen")
+        result = project_areas.list_project_areas(self.conn, self.project_id)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].project_id, self.project_id)
+
+    def test_list_by_area_id(self):
+        self._create("Remodel", "Kitchen")
+        result = project_areas.list_project_areas(self.conn, self.area_id)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].area_id, self.area_id)
 
     def test_list_empty(self):
         self.assertEqual(project_areas.list_project_areas(self.conn, "Remodel"), [])
@@ -163,6 +179,14 @@ class TestUpdateProjectArea(ProjectAreasTestCase):
                 self.conn, "Remodel", "Kitchen", ["bogus=1"]
             )
 
+    def test_unknown_project(self):
+        with self.assertRaises(ValueError):
+            project_areas.update_project_area(self.conn, "Nope", "Kitchen", ["notes=x"])
+
+    def test_unknown_area(self):
+        with self.assertRaises(ValueError):
+            project_areas.update_project_area(self.conn, "Remodel", "Nope", ["notes=x"])
+
     def test_not_linked(self):
         with self.assertRaises(ValueError):
             project_areas.update_project_area(
@@ -179,6 +203,19 @@ class TestDeleteProjectArea(ProjectAreasTestCase):
         self.assertIsNone(
             project_areas.get_project_area(self.conn, "Remodel", "Kitchen")
         )
+
+    def test_delete_by_id(self):
+        self._create()
+        self.assertTrue(
+            project_areas.delete_project_area(self.conn, self.project_id, self.area_id)
+        )
+        self.assertIsNone(
+            project_areas.get_project_area(self.conn, "Remodel", "Kitchen")
+        )
+
+    def test_delete_unknown_project(self):
+        with self.assertRaises(ValueError):
+            project_areas.delete_project_area(self.conn, "Nope", "Kitchen")
 
     def test_delete_unknown_area(self):
         with self.assertRaises(ValueError):

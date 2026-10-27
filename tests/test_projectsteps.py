@@ -116,6 +116,10 @@ class TestListProjectSteps(ProjectStepsTestCase):
         projectsteps.create_projectstep(self.conn, [other_id, "C", ""])
 
         steps = projectsteps.list_projectsteps(self.conn, self.project_id)
+        self.assertEqual(
+            [s.id for s in projectsteps.list_projectsteps(self.conn, "Kitchen")],
+            [s.id for s in steps],
+        )
         self.assertEqual(sorted(s.name for s in steps), ["A", "B"])
         for s in steps:
             self.assertIsInstance(s, projectsteps.HomeProjectStep)
@@ -129,9 +133,7 @@ class TestGetProjectStep(ProjectStepsTestCase):
     def test_by_id(self):
         self._create()
         step_id = self._get().id
-        step = projectsteps.get_projectstep(
-            self.conn, self.project_id, step_id, by="id"
-        )
+        step = projectsteps.get_projectstep(self.conn, self.project_id, step_id)
         self.assertEqual(step.name, "Demo")
 
     def test_missing_returns_none(self):
@@ -139,35 +141,25 @@ class TestGetProjectStep(ProjectStepsTestCase):
 
     def test_by_project_name(self):
         self._create()
-        step = projectsteps.get_projectstep(
-            self.conn, "Kitchen", "Demo", project_by="name"
-        )
+        step = projectsteps.get_projectstep(self.conn, "Kitchen", "Demo")
         self.assertEqual(step.project_id, self.project_id)
 
     def test_by_project_name_and_step_id(self):
         self._create()
         step_id = self._get().id
-        step = projectsteps.get_projectstep(
-            self.conn, "Kitchen", step_id, by="id", project_by="name"
-        )
+        step = projectsteps.get_projectstep(self.conn, "Kitchen", step_id)
         self.assertEqual(step.name, "Demo")
 
     def test_missing_project_returns_none(self):
         self._create()
-        self.assertIsNone(
-            projectsteps.get_projectstep(self.conn, "nope", "Demo", project_by="name")
-        )
         self.assertIsNone(projectsteps.get_projectstep(self.conn, "nope", "Demo"))
 
-    def test_invalid_project_lookup_type(self):
-        with self.assertRaises(ValueError):
-            projectsteps.get_projectstep(
-                self.conn, self.project_id, "x", project_by="bad"
-            )
-
-    def test_invalid_lookup_type(self):
-        with self.assertRaises(ValueError):
-            projectsteps.get_projectstep(self.conn, self.project_id, "x", by="bad")
+    def test_step_from_other_project_returns_none(self):
+        self._create()
+        step_id = self._get().id
+        projects.create_project(self.conn, ["Other", "x"])
+        self.assertIsNone(projectsteps.get_projectstep(self.conn, "Other", step_id))
+        self.assertIsNone(projectsteps.get_projectstep(self.conn, "Other", "Demo"))
 
 
 class TestDeleteProjectStep(ProjectStepsTestCase):
@@ -232,24 +224,22 @@ class TestUpdateProjectStep(ProjectStepsTestCase):
 
     def test_by_project_name(self):
         self._create()
-        projectsteps.update_projectstep(
-            self.conn, "Kitchen", "Demo", ["order_id=4"], project_by="name"
-        )
+        projectsteps.update_projectstep(self.conn, "Kitchen", "Demo", ["order_id=4"])
         self.assertEqual(self._get().order_id, 4)
+
+    def test_by_step_id(self):
+        self._create()
+        step_id = self._get().id
+        msg = projectsteps.update_projectstep(
+            self.conn, self.project_id, step_id, ["order_id=5"]
+        )
+        self.assertEqual(msg, "Updated project step with name Demo (order_id)")
+        self.assertEqual(self._get().order_id, 5)
 
     def test_missing_project(self):
         self._create()
         with self.assertRaises(ValueError):
-            projectsteps.update_projectstep(
-                self.conn, "nope", "Demo", ["order_id=4"], project_by="name"
-            )
-
-    def test_invalid_project_lookup_type(self):
-        self._create()
-        with self.assertRaises(ValueError):
-            projectsteps.update_projectstep(
-                self.conn, "Kitchen", "Demo", ["order_id=4"], project_by="bad"
-            )
+            projectsteps.update_projectstep(self.conn, "nope", "Demo", ["order_id=4"])
 
     def test_missing_step(self):
         with self.assertRaises(ValueError):

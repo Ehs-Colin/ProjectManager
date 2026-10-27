@@ -87,7 +87,7 @@ class TestGetTool(ToolsTestCase):
     def test_by_name_and_id(self):
         self._create("Hammer")
         by_name = tools.get_tool(self.conn, "Hammer")
-        by_id = tools.get_tool(self.conn, by_name.id, by="id")
+        by_id = tools.get_tool(self.conn, by_name.id)
         self.assertIsInstance(by_name, tools.HomeTool)
         self.assertEqual(by_id.name, "Hammer")
         self.assertIsNotNone(by_id.create_at)
@@ -95,11 +95,6 @@ class TestGetTool(ToolsTestCase):
 
     def test_missing_returns_none(self):
         self.assertIsNone(tools.get_tool(self.conn, "nope"))
-        self.assertIsNone(tools.get_tool(self.conn, "nope", by="id"))
-
-    def test_invalid_lookup_type(self):
-        with self.assertRaises(ValueError):
-            tools.get_tool(self.conn, "Hammer", by="description")
 
 
 class TestListTools(ToolsTestCase):
@@ -151,6 +146,13 @@ class TestUpdateTool(ToolsTestCase):
     def test_value_may_contain_equals(self):
         self._create("Hammer")
         tools.update_tool(self.conn, "Hammer", ["description=a=b"])
+        self.assertEqual(tools.get_tool(self.conn, "Hammer").description, "a=b")
+
+    def test_by_id(self):
+        self._create("Hammer")
+        tool_id = tools.get_tool(self.conn, "Hammer").id
+        msg = tools.update_tool(self.conn, tool_id, ["description=a=b"])
+        self.assertEqual(msg, "Updated tool with name Hammer (description)")
         self.assertEqual(tools.get_tool(self.conn, "Hammer").description, "a=b")
 
     def test_no_args(self):

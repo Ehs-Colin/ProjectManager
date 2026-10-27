@@ -61,21 +61,11 @@ def delete_tool(conn: sqlalchemy.engine.Connection, tool_id: str) -> bool:
     return True
 
 
-def get_tool(
-    conn: sqlalchemy.engine.Connection, lookup: str, by: str = "name"
-) -> HomeTool | None:
-    query = internal.db.tools.Querier(conn)
-    if by == "name":
-        sqlTool = query.get_tool_by_name(name=lookup)
-    elif by == "id":
-        sqlTool = query.get_tool_by_id(id=lookup)
-    else:
-        raise ValueError(f"invalid lookup type {by}; expected 'name' or 'id'")
-    if sqlTool is None:
+def get_tool(conn: sqlalchemy.engine.Connection, lookup: str) -> HomeTool | None:
+    try:
+        return find_tool(conn, lookup)
+    except ValueError:
         return None
-    tool = HomeTool()
-    tool.ConvertFromSql(sqlTool)
-    return tool
 
 
 def list_tools(conn: sqlalchemy.engine.Connection) -> list[HomeTool] | None:
@@ -94,9 +84,7 @@ _UPDATABLE_FIELDS = {
 }
 
 
-def update_tool(
-    conn: sqlalchemy.engine.Connection, tool_name: str, args: list[str]
-) -> str:
+def update_tool(conn: sqlalchemy.engine.Connection, tool: str, args: list[str]) -> str:
     if not args:
         raise TypeError(
             f"update tool expects at least 1 field=value argument "
@@ -115,13 +103,23 @@ def update_tool(
             )
         updates[field] = _UPDATABLE_FIELDS[field](value)
 
-    query = internal.db.tools.Querier(conn)
-    existing = query.get_tool_by_name(name=tool_name)
-    if existing is None:
-        raise ValueError(f"no tool found with name {tool_name}")
+    existing = find_tool(conn, tool)
 
     params = {field: getattr(existing, field) for field in _UPDATABLE_FIELDS}
     params.update(updates)
 
+    query = internal.db.tools.Querier(conn)
     query.update_tool(id=existing.id, **params)
-    return f"Updated tool with name {tool_name} ({', '.join(updates)})"
+    return f"Updated tool with name {existing.name} ({', '.join(updates)})"
+
+
+def find_tool(conn: sqlalchemy.engine.Connection, tool: str) -> HomeTool:
+    query = internal.db.tools.Querier(conn)
+    found = query.get_tool_by_id(id=tool)
+    if found is None:
+        found = query.get_tool_by_name(name=tool)
+    if found is None:
+        raise ValueError(f"no tool found with id or name {tool!r}")
+    home_tool = HomeTool()
+    home_tool.ConvertFromSql(found)
+    return home_tool

@@ -101,7 +101,7 @@ class TestGetProject(ProjectsTestCase):
     def test_by_name_and_id(self):
         self._create("Kitchen")
         by_name = projects.get_project(self.conn, "Kitchen")
-        by_id = projects.get_project(self.conn, by_name.id, by="id")
+        by_id = projects.get_project(self.conn, by_name.id)
         self.assertIsInstance(by_name, projects.HomeProject)
         self.assertEqual(by_id.name, "Kitchen")
         self.assertIsNotNone(by_id.create_at)
@@ -109,11 +109,6 @@ class TestGetProject(ProjectsTestCase):
 
     def test_missing_returns_none(self):
         self.assertIsNone(projects.get_project(self.conn, "nope"))
-        self.assertIsNone(projects.get_project(self.conn, "nope", by="id"))
-
-    def test_invalid_lookup_type(self):
-        with self.assertRaises(ValueError):
-            projects.get_project(self.conn, "Kitchen", by="budget")
 
 
 class TestListProjects(ProjectsTestCase):
@@ -166,6 +161,13 @@ class TestUpdateProject(ProjectsTestCase):
     def test_value_may_contain_equals(self):
         self._create("Kitchen")
         projects.update_project(self.conn, "Kitchen", ["description=a=b"])
+        self.assertEqual(projects.get_project(self.conn, "Kitchen").description, "a=b")
+
+    def test_by_id(self):
+        self._create("Kitchen")
+        project_id = projects.get_project(self.conn, "Kitchen").id
+        msg = projects.update_project(self.conn, project_id, ["description=a=b"])
+        self.assertEqual(msg, "Updated project with name Kitchen (description)")
         self.assertEqual(projects.get_project(self.conn, "Kitchen").description, "a=b")
 
     def test_no_args(self):

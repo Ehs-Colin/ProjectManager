@@ -87,7 +87,7 @@ class TestGetArea(AreasTestCase):
     def test_by_name_and_id(self):
         self._create("Kitchen")
         by_name = areas.get_area(self.conn, "Kitchen")
-        by_id = areas.get_area(self.conn, by_name.id, by="id")
+        by_id = areas.get_area(self.conn, by_name.id)
         self.assertIsInstance(by_name, areas.HomeArea)
         self.assertEqual(by_id.name, "Kitchen")
         self.assertIsNotNone(by_id.create_at)
@@ -95,11 +95,6 @@ class TestGetArea(AreasTestCase):
 
     def test_missing_returns_none(self):
         self.assertIsNone(areas.get_area(self.conn, "nope"))
-        self.assertIsNone(areas.get_area(self.conn, "nope", by="id"))
-
-    def test_invalid_lookup_type(self):
-        with self.assertRaises(ValueError):
-            areas.get_area(self.conn, "Kitchen", by="description")
 
 
 class TestListAreas(AreasTestCase):
@@ -151,6 +146,13 @@ class TestUpdateArea(AreasTestCase):
     def test_value_may_contain_equals(self):
         self._create("Kitchen")
         areas.update_area(self.conn, "Kitchen", ["description=a=b"])
+        self.assertEqual(areas.get_area(self.conn, "Kitchen").description, "a=b")
+
+    def test_by_id(self):
+        self._create("Kitchen")
+        area_id = areas.get_area(self.conn, "Kitchen").id
+        msg = areas.update_area(self.conn, area_id, ["description=a=b"])
+        self.assertEqual(msg, "Updated area with name Kitchen (description)")
         self.assertEqual(areas.get_area(self.conn, "Kitchen").description, "a=b")
 
     def test_no_args(self):

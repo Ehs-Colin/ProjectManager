@@ -191,3 +191,35 @@ def update_projectstep(
         internal.db.project_steps.UpdateProjectStepParams(id=existing.id, **params),
     )
     return f"Updated project step with name {existing.name} ({', '.join(updates)})"
+
+
+def set_step_projectvalue(
+    conn: sqlalchemy.engine.Connection,
+    project: str,
+    step: str,
+    value: int | str,
+) -> str:
+    value = int(value)
+    if value < 0 or value > 100:
+        raise ValueError(f"projectvalue must be between 0 and 100, got {value}")
+
+    steps = list_projectsteps(conn, project)
+    if steps is None:
+        raise ValueError(f"no project found with id or name {project!r}")
+
+    existing = get_projectstep(conn, project, step)
+    if existing is None:
+        raise ValueError(
+            f"no project step found with id or name {step!r} in project {project!r}"
+        )
+
+    # Exclude the step being set, since its current value is being replaced.
+    other_total = sum(s.projectvalue or 0 for s in steps if s.id != existing.id)
+    available = 100 - other_total
+    if value > available:
+        raise ValueError(
+            f"projectvalue {value} exceeds remaining available value {available} "
+            f"(other steps total {other_total})"
+        )
+
+    return update_projectstep(conn, project, existing.id, [f"projectvalue={value}"])

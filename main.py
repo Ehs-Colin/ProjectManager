@@ -195,6 +195,19 @@ def delete(conn: sqlalchemy.engine.Connection, table_name: str, args: list[str])
             return f"Invalid {table_name}: delete aborted"
 
 
+def display(
+    conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]
+) -> str:
+    if table_name != "project":
+        return f"Invalid {table_name}: display only supports project"
+    if len(args) != 1:
+        raise TypeError("display project expects '<name|id>'")
+    result = internal.projects.display_project(conn, args[0])
+    if not result:
+        return f"{table_name} not found"
+    return result
+
+
 def get_commands() -> list[Command]:
     """Return the available user commands as (name, function, arg_names) tuples."""
     return [
@@ -203,6 +216,7 @@ def get_commands() -> list[Command]:
         ("update", update, ["[project]", "name|id", "field=value..."]),
         ("delete", delete, ["name"]),
         ("list", get_list, ["type", "[project]"]),
+        ("display", display, ["project", "name|id"]),
     ]
 
 

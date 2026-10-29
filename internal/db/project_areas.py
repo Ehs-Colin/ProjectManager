@@ -2,6 +2,8 @@
 # versions:
 #   sqlc v1.31.1
 # source: project_areas.sql
+import datetime
+import pydantic
 from typing import AsyncIterator, Iterator, Optional
 
 import sqlalchemy
@@ -35,6 +37,23 @@ SELECT project_id, area_id, notes FROM ProjectAreas WHERE area_id = :p1
 GET_PROJECT_AREAS = """-- name: get_project_areas \\:many
 SELECT project_id, area_id, notes FROM ProjectAreas WHERE project_id = :p1
 """
+
+
+GET_PROJECT_AREAS_INFO = """-- name: get_project_areas_info \\:many
+SELECT ProjectAreas.notes as project_area_notes, areas.id, areas.create_at, areas.update_at, areas.name, areas.description
+FROM ProjectAreas
+JOIN Areas ON ProjectAreas.area_id = Areas.id
+WHERE ProjectAreas.project_id = :p1
+"""
+
+
+class GetProjectAreasInfoRow(pydantic.BaseModel):
+    project_area_notes: Optional[str]
+    id: str
+    create_at: datetime.datetime
+    update_at: datetime.datetime
+    name: str
+    description: Optional[str]
 
 
 UPDATE_PROJECT_AREA = """-- name: update_project_area \\:one
@@ -78,6 +97,18 @@ class Querier:
                 project_id=row[0],
                 area_id=row[1],
                 notes=row[2],
+            )
+
+    def get_project_areas_info(self, *, project_id: str) -> Iterator[GetProjectAreasInfoRow]:
+        result = self._conn.execute(sqlalchemy.text(GET_PROJECT_AREAS_INFO), {"p1": project_id})
+        for row in result:
+            yield GetProjectAreasInfoRow(
+                project_area_notes=row[0],
+                id=row[1],
+                create_at=row[2],
+                update_at=row[3],
+                name=row[4],
+                description=row[5],
             )
 
     def update_project_area(self, *, project_id: str, area_id: str, notes: Optional[str]) -> Optional[models.Projectarea]:
@@ -124,6 +155,18 @@ class AsyncQuerier:
                 project_id=row[0],
                 area_id=row[1],
                 notes=row[2],
+            )
+
+    async def get_project_areas_info(self, *, project_id: str) -> AsyncIterator[GetProjectAreasInfoRow]:
+        result = await self._conn.stream(sqlalchemy.text(GET_PROJECT_AREAS_INFO), {"p1": project_id})
+        async for row in result:
+            yield GetProjectAreasInfoRow(
+                project_area_notes=row[0],
+                id=row[1],
+                create_at=row[2],
+                update_at=row[3],
+                name=row[4],
+                description=row[5],
             )
 
     async def update_project_area(self, *, project_id: str, area_id: str, notes: Optional[str]) -> Optional[models.Projectarea]:

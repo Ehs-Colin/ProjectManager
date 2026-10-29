@@ -10,6 +10,12 @@ RETURNING *;
 -- name: GetProjectAreas :many
 SELECT * FROM ProjectAreas WHERE project_id = $1;
 
+-- name: GetProjectAreasInfo :many
+SELECT ProjectAreas.notes as project_area_notes, Areas.*
+FROM ProjectAreas
+JOIN Areas ON ProjectAreas.area_id = Areas.id
+WHERE ProjectAreas.project_id = $1;
+
 -- name: GetAreaProjects :many
 SELECT * FROM ProjectAreas WHERE area_id = $1;
 

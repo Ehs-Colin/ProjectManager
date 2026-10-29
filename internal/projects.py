@@ -5,7 +5,10 @@ from datetime import datetime
 import sqlalchemy
 
 import internal.db.models
+import internal.db.project_areas
+import internal.db.project_step_tools
 import internal.db.projects
+from internal import projectsteps
 
 
 class HomeProject(internal.db.models.Project):
@@ -55,6 +58,51 @@ class HomeProject(internal.db.models.Project):
  * Created:            {self.create_at}
  * Updated:            {self.update_at}
 """
+
+
+def display_project(conn: sqlalchemy.engine.Connection, lookup: str) -> str:
+    current_project = get_project(conn, lookup)
+    if current_project is None:
+        return ""
+
+    result: str = f"=== PROJECT: {current_project.name}        {current_project.completion_percent}% ===\n"
+    result += f"* description:        {current_project.description}\n"
+    result += f"* budget:             {current_project.budget}\n"
+    result += "----------------------------------------\n"
+
+    current_areas = internal.db.project_areas.Querier(conn).get_project_areas_info(
+        project_id=current_project.id
+    )
+    first = True
+    for area in current_areas:
+        if not first:
+            result += "\n"
+        result += f"--= Project Area: {area.name} =--\n"
+        result += f" * {area.description}\n"
+        result += f" * {area.project_area_notes}\n"
+        first = False
+    result += "----------------------------------------\n"
+
+    current_project_steps = projectsteps.list_projectsteps(conn, current_project.id)
+    if current_project_steps is not None:
+        first = True
+        for step in current_project_steps:
+            if not first:
+                result += "\n"
+            result += (
+                f" --= Step {step.name}:          {step.completion_percent}% =--\n"
+            )
+            result += f" * {step.description}\n"
+            step_tools = internal.db.project_step_tools.Querier(
+                conn
+            ).get_project_step_tools_info(
+                project_id=current_project.id, step_id=step.id
+            )
+            for tool in step_tools:
+                result += f"      * Tool: {tool.name} - {tool.description}\n"
+            first = False
+
+    return result
 
 
 def create_project(

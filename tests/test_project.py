@@ -4,7 +4,12 @@ import unittest
 
 import sqlalchemy
 
+import internal.areas as areas
+import internal.project_areas as project_areas
+import internal.project_step_tools as project_step_tools
 import internal.projects as projects
+import internal.projectsteps as projectsteps
+import internal.tools as tools
 
 SCHEMA = (
     pathlib.Path(__file__).resolve().parents[1] / "sql" / "schema" / "0001_projects.sql"
@@ -183,6 +188,56 @@ class TestUpdateProject(ProjectsTestCase):
     def test_missing_project(self):
         with self.assertRaises(ValueError):
             projects.update_project(self.conn, "nope", ["budget=1"])
+
+
+class TestDisplayProject(ProjectsTestCase):
+    def test_missing_returns_empty(self):
+        self.assertEqual(projects.display_project(self.conn, "nope"), "")
+
+    def test_header_only(self):
+        self._create("Kitchen", "Remodel")
+        out = projects.display_project(self.conn, "Kitchen")
+        self.assertIn("=== PROJECT: Kitchen", out)
+        self.assertIn("0.0% ===", out)
+        self.assertIn("* description:        Remodel", out)
+        self.assertIn("* budget:             0", out)
+        self.assertNotIn("Project Area:", out)
+        self.assertNotIn("Step", out)
+
+    def test_by_id(self):
+        created = self._create("Kitchen", "Remodel")
+        self.assertEqual(
+            projects.display_project(self.conn, created.id),
+            projects.display_project(self.conn, "Kitchen"),
+        )
+
+    def test_full_output(self):
+        project_id = self._create("Kitchen", "Remodel").id
+        self._create("Garden", "Beds")
+        areas.create_area(self.conn, ["Floor", "Tile floor"])
+        areas.create_area(self.conn, ["Walls", "Drywall"])
+        project_areas.create_project_area(
+            self.conn, ["Kitchen", "Floor", "Replace tile"]
+        )
+        project_areas.create_project_area(self.conn, ["Garden", "Walls"])
+        step_id = projectsteps.create_projectstep(
+            self.conn, [project_id, "Demo", "Tear out"]
+        ).id
+        tools.create_tool(self.conn, ["Hammer", "Claw"])
+        tools.create_tool(self.conn, ["Saw", "Circular"])
+        project_step_tools.create_project_step_tool(
+            self.conn, [project_id, step_id, "Hammer"]
+        )
+
+        out = projects.display_project(self.conn, "Kitchen")
+        self.assertIn("--= Project Area: Floor =--", out)
+        self.assertIn(" * Tile floor", out)
+        self.assertIn(" * Replace tile", out)
+        self.assertNotIn("Walls", out)  # area linked to another project
+        self.assertIn("--= Step Demo:", out)
+        self.assertIn(" * Tear out", out)
+        self.assertIn("* Tool: Hammer - Claw", out)
+        self.assertNotIn("Saw", out)
 
 
 if __name__ == "__main__":

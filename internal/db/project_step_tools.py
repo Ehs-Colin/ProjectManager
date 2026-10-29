@@ -31,6 +31,13 @@ SELECT project_id, step_id, tool_id FROM ProjectStepTools WHERE project_id = :p1
 """
 
 
+GET_PROJECT_STEP_TOOLS_INFO = """-- name: get_project_step_tools_info \\:many
+SELECT tools.id, tools.create_at, tools.update_at, tools.name, tools.description FROM ProjectStepTools
+JOIN Tools ON ProjectStepTools.tool_id = Tools.id
+WHERE ProjectStepTools.project_id = :p1 AND ProjectStepTools.step_id = :p2
+"""
+
+
 GET_TOOLS_PROJECT_STEP = """-- name: get_tools_project_step \\:many
 SELECT project_id, step_id, tool_id FROM ProjectStepTools WHERE project_id = :p1 AND step_id = :p2
 """
@@ -60,6 +67,17 @@ class Querier:
                 project_id=row[0],
                 step_id=row[1],
                 tool_id=row[2],
+            )
+
+    def get_project_step_tools_info(self, *, project_id: str, step_id: str) -> Iterator[models.Tool]:
+        result = self._conn.execute(sqlalchemy.text(GET_PROJECT_STEP_TOOLS_INFO), {"p1": project_id, "p2": step_id})
+        for row in result:
+            yield models.Tool(
+                id=row[0],
+                create_at=row[1],
+                update_at=row[2],
+                name=row[3],
+                description=row[4],
             )
 
     def get_tools_project_step(self, *, project_id: str, step_id: str) -> Iterator[models.Projectsteptool]:
@@ -96,6 +114,17 @@ class AsyncQuerier:
                 project_id=row[0],
                 step_id=row[1],
                 tool_id=row[2],
+            )
+
+    async def get_project_step_tools_info(self, *, project_id: str, step_id: str) -> AsyncIterator[models.Tool]:
+        result = await self._conn.stream(sqlalchemy.text(GET_PROJECT_STEP_TOOLS_INFO), {"p1": project_id, "p2": step_id})
+        async for row in result:
+            yield models.Tool(
+                id=row[0],
+                create_at=row[1],
+                update_at=row[2],
+                name=row[3],
+                description=row[4],
             )
 
     async def get_tools_project_step(self, *, project_id: str, step_id: str) -> AsyncIterator[models.Projectsteptool]:

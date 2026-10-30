@@ -193,6 +193,42 @@ def update_projectstep(
     return f"Updated project step with name {existing.name} ({', '.join(updates)})"
 
 
+def advancestep(
+    conn: sqlalchemy.engine.Connection,
+    project: str,
+    step: str,
+) -> str:
+    existing = get_projectstep(conn, project, step)
+    if existing is None:
+        raise ValueError(
+            f"no project step found with id or name {step!r} in project {project!r}"
+        )
+
+    current = existing.completion_percent or 0.0
+    if current >= 100:
+        return f"Project step {existing.name} is already 100% complete"
+    new_percent = min(current + 1, 100.0)
+    update_projectstep(
+        conn, project, existing.id, [f"completion_percent={new_percent}"]
+    )
+
+    # Recompute from all steps so the project total stays consistent with
+    # each step's weighted contribution (projectvalue * completion / 100).
+    steps = list_projectsteps(conn, project) or []
+    project_percent = sum(
+        (s.projectvalue or 0) * (s.completion_percent or 0.0) / 100 for s in steps
+    )
+    project_percent = min(round(project_percent, 2), 100.0)
+    internal.projects.update_project(
+        conn, existing.project_id, [f"completion_percent={project_percent}"]
+    )
+
+    return (
+        f"Advanced project step {existing.name} to {new_percent}% "
+        f"(project now {project_percent}%)"
+    )
+
+
 def set_step_projectvalue(
     conn: sqlalchemy.engine.Connection,
     project: str,

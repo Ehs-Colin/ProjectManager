@@ -208,6 +208,17 @@ def display(
     return result
 
 
+def advance(
+    conn: sqlalchemy.engine.Connection, table_name: str, args: list[str]
+) -> str:
+    if table_name != "step":
+        return f"Invalid {table_name}: advance only supports step"
+    if len(args) != 2:
+        raise TypeError("advance step expects '<project> <step>'")
+    project, step = args
+    return internal.projectsteps.advancestep(conn, project, step)
+
+
 def get_commands() -> list[Command]:
     """Return the available user commands as (name, function, arg_names) tuples."""
     return [
@@ -217,6 +228,7 @@ def get_commands() -> list[Command]:
         ("delete", delete, ["name"]),
         ("list", get_list, ["type", "[project]"]),
         ("display", display, ["project", "name|id"]),
+        ("advance", advance, ["step", "project", "step"]),
     ]
 
 

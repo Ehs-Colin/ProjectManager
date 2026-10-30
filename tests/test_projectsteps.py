@@ -246,5 +246,74 @@ class TestUpdateProjectStep(ProjectStepsTestCase):
             self._update("description=x", name="nope")
 
 
+class TestAdvanceStep(ProjectStepsTestCase):
+    def _set(self, name, *fields):
+        projectsteps.update_projectstep(self.conn, self.project_id, name, list(fields))
+
+    def _project_percent(self):
+        return projects.get_project(self.conn, "Kitchen").completion_percent
+
+    def test_advances_by_one(self):
+        self._create()
+        msg = projectsteps.advancestep(self.conn, self.project_id, "Demo")
+        self.assertEqual(self._get().completion_percent, 1.0)
+        self.assertIn("Advanced project step Demo to 1.0%", msg)
+
+    def test_repeated_advances_accumulate(self):
+        self._create()
+        for _ in range(3):
+            projectsteps.advancestep(self.conn, self.project_id, "Demo")
+        self.assertEqual(self._get().completion_percent, 3.0)
+
+    def test_caps_at_100(self):
+        self._create()
+        self._set("Demo", "completion_percent=99.5")
+        projectsteps.advancestep(self.conn, self.project_id, "Demo")
+        self.assertEqual(self._get().completion_percent, 100.0)
+
+    def test_already_complete_is_noop(self):
+        self._create()
+        self._set("Demo", "completion_percent=100", "projectvalue=50")
+        msg = projectsteps.advancestep(self.conn, self.project_id, "Demo")
+        self.assertIn("already 100% complete", msg)
+        self.assertEqual(self._get().completion_percent, 100.0)
+        self.assertEqual(self._project_percent(), 0.0)
+
+    def test_updates_project_percent_by_step_value(self):
+        self._create()
+        self._set("Demo", "projectvalue=50")
+        msg = projectsteps.advancestep(self.conn, self.project_id, "Demo")
+        self.assertEqual(self._project_percent(), 0.5)
+        self.assertIn("project now 0.5%", msg)
+
+    def test_project_percent_sums_all_steps(self):
+        self._create("A", "")
+        self._create("B", "")
+        self._set("A", "projectvalue=40", "completion_percent=100")
+        self._set("B", "projectvalue=60", "completion_percent=49")
+        projectsteps.advancestep(self.conn, self.project_id, "B")
+        self.assertEqual(self._project_percent(), 70.0)
+
+    def test_zero_projectvalue_leaves_project_unchanged(self):
+        self._create()
+        projectsteps.advancestep(self.conn, self.project_id, "Demo")
+        self.assertEqual(self._project_percent(), 0.0)
+
+    def test_by_project_name_and_step_id(self):
+        self._create()
+        step_id = self._get().id
+        projectsteps.advancestep(self.conn, "Kitchen", step_id)
+        self.assertEqual(self._get().completion_percent, 1.0)
+
+    def test_missing_step(self):
+        with self.assertRaises(ValueError):
+            projectsteps.advancestep(self.conn, self.project_id, "nope")
+
+    def test_missing_project(self):
+        self._create()
+        with self.assertRaises(ValueError):
+            projectsteps.advancestep(self.conn, "nope", "Demo")
+
+
 if __name__ == "__main__":
     unittest.main()
